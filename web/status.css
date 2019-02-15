@@ -1,0 +1,108 @@
+body {
+    font-family: cantarell, sans;
+}
+.sidebar {
+    position: fixed;
+    width: 200px;
+    height: 100%;
+}
+.sidebar .item {
+    display: block;
+}
+.sidebar .item, sidebar .item:visited {
+    color: #226688;
+    text-decoration: none;
+}
+.sidebar .item.bad, sidebar .item.bad:visited {
+    color: #882222;
+}
+.main {
+    margin-left: 200px;
+}
+
+.flatpak {
+    margin-top: 10px;
+}
+.flatpak > .header {
+    font-size: 140%;
+}
+.build {
+    margin-top: 10px;
+    padding: 5px;
+    border: 1px solid black;
+}
+.build > .header {
+    margin: -5px -5px -5px -5px;
+    padding: 5px;
+    font-size: 110%;
+}
+.build > .header::before {
+    width: 1.5em;
+    display: inline-block;
+    content: "\1F4E6";
+}
+.build > .header.bad::before {
+    content: "\1F6D1";
+}
+.build > .header.expanded {
+    margin: -5px -5px -5px -5px;
+    padding: 5px;
+    font-size: 110%;
+    margin-bottom: 5px;
+    border-bottom: 1px solid #aaaaaa;
+}
+.package {
+    margin-left: 2em;
+    margin-top: 5px;
+}
+.package > .header::before {
+    font-size: 80%;
+    color: black;
+    content: "\25b6";
+    display: inline-block;
+    width: 1em;
+    margin-left: -1em;
+}
+.package > .header.expanded::before {
+    content: "\25bc";
+}
+.package > .header.expanded {
+    border-bottom: 1px solid #cccccc;
+}
+.package-bad > .header {
+    color: red;
+}
+.history-item::before {
+    font-size: 80%;
+    content: " ";
+    display: inline-block;
+    width: 1em;
+    margin-left: -1em;
+}
+.history-item.current::before {
+    content: "\25cb";
+}
+.commit-link, .commit-link:visited {
+    font-family: monospace;
+    text-decoration: none;
+    color: #226688;
+}
+.build-link, .module-link {
+    text-decoration: none;
+    color: #226688;
+}
+.update-link {
+    text-decoration: none;
+}
+.update-link.stable {
+    text-decoration: none;
+    color: #228844;
+}
+.update-link.testing {
+    text-decoration: none;
+    color: #aa6622;
+}
+.update-link {
+    text-decoration: none;
+    color: #aa2288;
+}

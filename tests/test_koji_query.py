@@ -1,0 +1,43 @@
+from flatpak_status.koji_query import list_flatpak_builds, query_build, refresh_flatpak_builds
+from flatpak_status.models import Flatpak, FlatpakBuild
+from .koji import make_koji_session
+
+
+def test_query_builds(session):
+    koji_session = make_koji_session()
+
+    eog_flatpak = Flatpak.get_for_name(session, 'eog', koji_session=koji_session)
+    quadrapassel_flatpak = Flatpak.get_for_name(session, 'quadrapassel', koji_session=koji_session)
+
+    # First try, we query from scratch from Koji
+    refresh_flatpak_builds(koji_session, session, [eog_flatpak])
+    builds = list_flatpak_builds(session, eog_flatpak)
+    assert len(builds) == 2
+    assert isinstance(builds[0], FlatpakBuild)
+    assert builds[0].nvr == 'eog-master-20180821163756.2'
+
+    refresh_flatpak_builds(koji_session, session, [eog_flatpak, quadrapassel_flatpak])
+
+    new_builds = list_flatpak_builds(session, eog_flatpak)
+    assert len(new_builds) == 2
+    assert new_builds[0] is builds[0]
+    assert new_builds[1] is builds[1]
+
+    new_builds = list_flatpak_builds(session, quadrapassel_flatpak)
+    assert len(new_builds) == 1
+    assert new_builds[0].nvr == 'quadrapassel-master-20181203181243.2'
+
+
+def test_query_build(session):
+    koji_session = make_koji_session()
+
+    build = query_build(koji_session, session, 'eog-master-20181128204005.1',
+                        Flatpak, FlatpakBuild)
+    assert build
+    assert isinstance(build, FlatpakBuild)
+    assert build.nvr == 'eog-master-20181128204005.1'
+
+    # Try again and make sure we get the existing object from the database
+    new_build = query_build(koji_session, session, 'eog-master-20181128204005.1',
+                            Flatpak, FlatpakBuild)
+    assert new_build is build

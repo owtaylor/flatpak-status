@@ -1,0 +1,16 @@
+env:
+    browser: true
+    es6: true
+extends: google
+globals:
+    Atomics: readonly
+    SharedArrayBuffer: readonly
+parserOptions:
+    ecmaVersion: 2018
+plugins:
+    - vue
+rules:
+    indent: ["error", 4]
+    max-len: ["error", 100]
+    require-jsdoc: ["off"]
+

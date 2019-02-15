@@ -1,0 +1,13 @@
+{
+  "name": "flatpak-status",
+  "version": "0.1.0",
+  "description": "Flatpak Status Web Page",
+  "main": "web/status.js",
+  "author": "Owen Taylor",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^5.14.1",
+    "eslint-config-google": "^0.12.0",
+    "eslint-plugin-vue": "^5.2.2"
+  }
+}

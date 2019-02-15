@@ -1,0 +1,10 @@
+*.egg-info
+.coverage
+.test-data
+package-lock.json
+Pipfile.lock
+cache
+htmlcov
+node_modules
+test-data
+web/status.json

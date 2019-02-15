@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fedora Flaptak Status</title>
+  <script src="https://unpkg.com/vue"></script>
+  <link rel="stylesheet" href="status.css">
+</head>
+<body>
+  <div id="app">
+    <div class="sidebar">
+      <flatpak-item v-for="flatpak in flatpaks" :flatpak="flatpak" :key="flatpak.name">
+      </flatpak-item>
+    </div>
+    <div class="main">
+      <flatpak-details v-for="flatpak in flatpaks" :flatpak="flatpak" :key="flatpak.name">
+      </flatpak-item>
+    </div>
+  </div>
+  <script src="status.js">
+  </script>
+</body>
+</html>
+
