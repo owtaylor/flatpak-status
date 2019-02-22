@@ -22,7 +22,7 @@ RUN PIPENV_VENV_IN_PROJECT=1 pipenv --three --site-packages && \
 
 ADD flatpak_status /opt/flatpak-status/flatpak_status
 ADD setup.py /opt/flatpak-status
-RUN pipenv run pip install -e .
+RUN pipenv run pip3 install -e .
 
 ADD tests /opt/flatpak-status/tests
 ADD utils /opt/flatpak-status/utils
