@@ -157,6 +157,21 @@ class WorkThread(threading.Thread):
                 next_update_time = now + self.update_interval
 
 
+def _suppress_fedmsg_routing_warnings():
+    # fedmsg's routing policy mechanism is meant to allow binding particular
+    # messages to the crypto certificates for particular servers in the
+    # infrastructure. Setting this up outside of Fedora infrastructure would
+    # be difficult, so we just filter out the nag messages that occur when
+    # no routing policy is set, but messages aren't actually blocked.
+
+    class NoRoutingFilter(logging.Filter):
+        def filter(self, record):
+            return not (record.msg.startswith("No routing policy defined") and
+                        "but routing_nitpicky is False" in record.msg)
+
+    logging.getLogger('fedmsg.crypto.utils').addFilter(NoRoutingFilter())
+
+
 @click.option('-o', '--output', required=True,
               help='Output filename')
 @click.option('--mirror-existing/--no-mirror-existing', is_flag=True, default=True,
@@ -166,6 +181,8 @@ class WorkThread(threading.Thread):
 @cli.command(name="daemon")
 @click.pass_context
 def daemon(ctx, output, mirror_existing, update_interval):
+    _suppress_fedmsg_routing_warnings()
+
     # With KeyboardInterrupt handling, the main thread won't exit until
     # the thread dies, but the thread won't die unless some subprocess
     # caught the SIGINT and caused a traceback... It's better to just exit.
