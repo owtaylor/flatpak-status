@@ -14,7 +14,7 @@ def test_query_builds(session):
     builds = list_flatpak_builds(session, eog_flatpak)
     assert len(builds) == 2
     assert isinstance(builds[0], FlatpakBuild)
-    assert builds[0].nvr == 'eog-master-20180821163756.2'
+    assert builds[0].nvr == 'eog-master-20181128204005.1'
 
     refresh_flatpak_builds(koji_session, session, [eog_flatpak, quadrapassel_flatpak])
 

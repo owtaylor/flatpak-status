@@ -30,6 +30,10 @@ def _parse_date_param(params, name):
     return iso8601.parse_date(values[0])
 
 
+def _parse_date_value(value):
+    return datetime.strptime(value, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+
+
 def _check_date(update, name, since):
     if since is None:
         return True
@@ -37,7 +41,7 @@ def _check_date(update, name, since):
     value = update.get(name)
     if value is None:
         return False
-    if datetime.strptime(value, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc) < since:
+    if _parse_date_value(value) < since:
         return False
 
     return True
@@ -78,6 +82,10 @@ def get_updates_callback(request):
             continue
 
         matched_updates.append(update)
+
+    # Sort in descending order by date_submitted
+    matched_updates.sort(key=lambda x: _parse_date_value(update['date_submitted']),
+                         reverse=True)
 
     pages = (len(matched_updates) + rows_per_page - 1) // rows_per_page
     paged_updates = matched_updates[(page - 1) * rows_per_page:page * rows_per_page]

@@ -69,6 +69,10 @@ def mock_list_builds(packageID=None, type=None, state=None, completeAfter=None):
 
         result.append(b)
 
+    # Descending order by build_id seems to match what koji does, in any case
+    # we don't want to order in readdir order
+    result.sort(key=lambda x: x['build_id'], reverse=True)
+
     return result
 
 
