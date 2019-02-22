@@ -28,7 +28,7 @@ if $update_test_data ; then
     fi
 fi
 
-set -x
+set +e -x
 
 pytest --cov=flatpak_status --cov-report=term-missing tests
 [ $? == 0 ] || failed=true
