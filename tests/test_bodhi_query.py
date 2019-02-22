@@ -18,10 +18,13 @@ def test_bodhi_query_flatpak_updates(session):
     updates = list_updates(session, 'flatpak', feedreader_flatpak)
     assert len(updates) == 3
 
-    update_build, build = updates[0]
+    selected = [x for x in updates if x[0].build_nvr == 'feedreader-master-2920190201225359.1']
+    assert len(selected) == 1
+
+    update_build, build = selected[0]
     assert isinstance(update_build, FlatpakUpdateBuild)
-    assert update_build.update.status == 'obsolete'
     assert update_build.build_nvr == 'feedreader-master-2920190201225359.1'
+    assert update_build.update.status == 'obsolete'
     assert isinstance(build, FlatpakBuild)
     assert build.nvr == 'feedreader-master-2920190201225359.1'
 

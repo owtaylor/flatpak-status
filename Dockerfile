@@ -6,6 +6,7 @@ LABEL org.label-schema.vcs-ref=$vcs_ref
 RUN dnf -y update && \
     dnf -y install \
         git-core \
+        koji \
         pipenv \
         python3-fedmsg \
         python3-koji \

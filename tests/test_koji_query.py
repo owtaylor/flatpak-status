@@ -4,6 +4,9 @@ from .koji import make_koji_session
 
 
 def test_query_builds(session):
+    def sort_builds(builds):
+        builds.sort(key=lambda x: x.koji_build_id)
+
     koji_session = make_koji_session()
 
     eog_flatpak = Flatpak.get_for_name(session, 'eog', koji_session=koji_session)
@@ -12,13 +15,15 @@ def test_query_builds(session):
     # First try, we query from scratch from Koji
     refresh_flatpak_builds(koji_session, session, [eog_flatpak])
     builds = list_flatpak_builds(session, eog_flatpak)
+    sort_builds(builds)
     assert len(builds) == 2
     assert isinstance(builds[0], FlatpakBuild)
-    assert builds[0].nvr == 'eog-master-20181128204005.1'
+    assert builds[0].nvr == 'eog-master-20180821163756.2'
 
     refresh_flatpak_builds(koji_session, session, [eog_flatpak, quadrapassel_flatpak])
 
     new_builds = list_flatpak_builds(session, eog_flatpak)
+    sort_builds(new_builds)
     assert len(new_builds) == 2
     assert new_builds[0] is builds[0]
     assert new_builds[1] is builds[1]
