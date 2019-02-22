@@ -8,7 +8,8 @@ RUN dnf -y update && \
         python3-koji \
         python3-pip \
         rsync \
-        nodejs
+        nodejs \
+        which
 
 RUN mkdir /opt/flatpak-status
 WORKDIR /opt/flatpak-status
