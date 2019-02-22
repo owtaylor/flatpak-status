@@ -2,8 +2,6 @@
 
 set -e
 
-failed=false
-
 fetch_cache=false
 update_test_data=false
 
@@ -28,13 +26,20 @@ if $update_test_data ; then
     fi
 fi
 
+failed=""
+
 set +e -x
 
 pytest --cov=flatpak_status --cov-report=term-missing tests
-[ $? == 0 ] || failed=true
+[ $? == 0 ] || failed="$failed pytest"
 flake8 flatpak_status utils tests
-[ $? == 0 ] || failed=true
+[ $? == 0 ] || failed="$failed flake8"
 node_modules/.bin/eslint web/status.js
-[ $? == 0 ] || failed=true
+[ $? == 0 ] || failed="$failed eslint"
 
-$failed && exit 1
+set -e +x
+
+if [ "$failed" != "" ] ; then
+    echo "FAILED:$failed"
+    exit 1
+fi
