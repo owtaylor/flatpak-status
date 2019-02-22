@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import signal
 import threading
 import time
 
@@ -156,6 +157,10 @@ class WorkThread(threading.Thread):
 @cli.command(name="daemon")
 @click.pass_context
 def daemon(ctx, output, mirror_existing, update_interval):
+    # With KeyboardInterrupt handling, the main thread won't exit until
+    # the thread dies, but the thread won't die unless some subprocess
+    # caught the SIGINT and caused a traceback... It's better to just exit.
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     work_thread = WorkThread(ctx.obj['cache_dir'], output, update_interval)
     if mirror_existing:
