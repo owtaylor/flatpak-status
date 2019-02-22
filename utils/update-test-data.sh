@@ -27,13 +27,15 @@ done
 [ -d test-data ] || from_cache=true
 
 if $from_cache && $fetch ; then
-    from_rev=$(git rev-parse --quiet --verify refs/heads/test-data || true)
-    [ "$from_rev" != "" ] || \
-        from_rev=$(git rev-parse --quiet --verify refs/remotes/origin/test-data || true)
-    [ "$from_rev" != "" ] || (
-        echo "No test-data or origin/test-data branch"
+    from_rev=$(git rev-parse --quiet --verify refs/heads/test-data-cache || true)
+    if [ "$from_rev" = "" ] ; then
+        git fetch --depth=1 origin test-data-cache:refs/remotes/origin/test-data-cache
+        from_rev=$(git rev-parse --quiet --verify refs/remotes/origin/test-data-cache || true)
+    fi
+    if [ "$from_rev" = "" ] ; then
+        echo "No test-data-cache or origin/test-data-cache branch"
         exit 1
-    )
+    fi
 
     if ! git diff-index --cached --quiet HEAD ; then
         echo "Can't checkout test data with staged changes"
@@ -42,13 +44,14 @@ if $from_cache && $fetch ; then
 
     [ -d .test-data ] || mkdir .test-data
 
-    old_branch=$(git symbolic-ref HEAD)
 
+    # Temporarily switch to a detached HEAD
     git_dir=$(git rev-parse --git-dir)
-    # Like checkout --detach but don't change the working tree
-    echo $from_rev  > $git_dir/HEAD.new && mv $git_dir/HEAD.new $git_dir/HEAD
+    cp $git_dir/HEAD $git_dir/HEAD.save
+    echo $from_rev > $git_dir/HEAD.new && mv $git_dir/HEAD.new $git_dir/HEAD
     git --work-tree=.test-data reset --hard
-    git symbolic-ref HEAD $old_branch
+    # Now put the HEAD ref and index back into place
+    mv $git_dir/HEAD.save $git_dir/HEAD
     git reset
 fi
 
