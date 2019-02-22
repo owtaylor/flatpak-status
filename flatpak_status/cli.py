@@ -149,16 +149,16 @@ class WorkThread(threading.Thread):
 
 @click.option('-o', '--output', required=True,
               help='Output filename')
-@click.option('--mirror-all/--no-mirror-all', is_flag=True, default=True,
+@click.option('--mirror-existing/--no-mirror-existing', is_flag=True, default=True,
               help="Initially update all existing distgit repos (default)")
 @click.option('--update-interval', type=int, default=1800,
               help="Update interval in seconds (default=1800)")
 @cli.command(name="daemon")
 @click.pass_context
-def daemon(ctx, output, mirror_all, update_interval):
+def daemon(ctx, output, mirror_existing, update_interval):
 
     work_thread = WorkThread(ctx.obj['cache_dir'], output, update_interval)
-    if mirror_all:
+    if mirror_existing:
         work_thread.mirror_all()
     work_thread.start()
 
