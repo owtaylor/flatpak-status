@@ -197,12 +197,7 @@ def daemon(ctx, output, mirror_existing, update_interval):
     match_topic = 'org.fedoraproject.prod.git.receive'
     for name, endpoint, topic, raw_msg in fedmsg.tail_messages(topic=match_topic):
         msg = raw_msg['msg']
-        print(name, endpoint, topic, msg)
-        print(msg['commit'])
-        print(msg['commit']['namespace'])
-        print(msg['commit']['repo'])
         rev = msg['commit']['rev']
-
         path = msg['commit']['namespace'] + '/' + msg['commit']['repo']
         logger.info("Saw commit on %s", path)
         work_thread.mirror(path, rev)
