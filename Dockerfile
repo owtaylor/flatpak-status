@@ -1,5 +1,8 @@
 FROM fedora:29
 
+ARG vcs_ref=
+LABEL org.label-schema.vcs-ref=$vcs_ref
+
 RUN dnf -y update && \
     dnf -y install \
         git-core \
