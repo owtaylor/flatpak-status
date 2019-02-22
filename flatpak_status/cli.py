@@ -61,21 +61,30 @@ class GlobalObjects:
 
 
 def do_update(global_objects, output):
-    investigation = Investigation()
-    investigation.add_flatpak('0ad')
-    investigation.add_flatpak('eog')
-    investigation.add_flatpak('feedreader')
-    investigation.add_flatpak('flatpak-runtime')
-    investigation.add_flatpak('gnome-clocks')
-    investigation.add_flatpak('quadrapassel')
-    investigation.add_flatpak('wesnoth')
-
     updater = global_objects.make_updater()
-    investigation.investigate(updater)
-    updater.db_session.commit()
 
-    with open(output, 'w') as f:
-        json.dump(investigation, f, cls=UpdateJsonEncoder, indent=4)
+    try:
+        investigation = Investigation()
+        investigation.add_flatpak('0ad')
+        investigation.add_flatpak('eog')
+        investigation.add_flatpak('feedreader')
+        investigation.add_flatpak('flatpak-runtime')
+        investigation.add_flatpak('gnome-clocks')
+        investigation.add_flatpak('quadrapassel')
+        investigation.add_flatpak('wesnoth')
+
+        investigation.investigate(updater)
+        updater.db_session.commit()
+
+        with open(output, 'w') as f:
+            json.dump(investigation, f, cls=UpdateJsonEncoder, indent=4)
+
+        logger.info("Successfully created json cache at %s", output)
+    except Exception:
+        updater.db_session.rollback()
+        raise
+    finally:
+        updater.db_session.close()
 
 
 @click.option('-o', '--output', required=True,
