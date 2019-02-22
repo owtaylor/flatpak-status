@@ -10,29 +10,49 @@ and writes a JSON file containing the status.
 
 Then a static vue.js application creates the display from the status.
 
-The update process
-==================
+Running updates
+===============
 
-`
-$ flatpak-status --cachedir=<cachedir> update -o <some_directory>/status.json
-`
+``` sh
+flatpak-status --cachedir=<cachedir> update -o <some_directory>/status.json
+```
 
-Because updating all the repositories from src.fedoraproject.org takes a very long time,
-git mirroring can be done as a background process.
+Runs a one-off update. Options are:
 
-`
-$ flatpak-status --cachedir=<cachedir> git-mirror &
-[...]
-$ flatpak-status --cachedir=<cachedir> --no-update-existing update
-[...]
-$ flatpak-status --cachedir=<cachedir> --no-update-existing update
-`
+**-o/--output**
+Output filename
+
+**--mirror-existing/--no-mirror-existing**
+Enable (the default) or disable updating src.fedoraproject.org repositories that have already been mirrored.
+This can be used to speed things up during testing.
+
+
+``` sh
+$ flatpak-status --cachedir=<cachedir> daemon -o <some_directory>/status.json
+```
+
+This runs a continuous update process. The fedmsg message bus is monitored for commits to
+src.fedoraproject.org, which  accelerates the update process, since it isn't necessary
+to loop through and check for updates to the repositories one-by-one.
+
+**-o/--output**
+Output filename
+
+**--mirror-existing/--no-mirror-existing**
+Enable (the default) or disable updating src.fedoraproject.org repositories that have
+already been mirrored at startup. This can be used to speed things up during testing.
+Even if --no-mirror-existing is passed, existing repositories will be mirrored if
+commits are seen.
+
+**--update-interval**
+How often to mirror existing repositories, in seconds. The default is 1800 (30 minutes)
+
 
 Configuring the web
 ===================
 
-You should configure your web server so that
-status.json and the files under web/ -
+You should configure your web server so that the generated
+`status`.json and the files under web/ -
 `index.html`,
 `status.css`,
 and `status.js` are all available with the same path.
@@ -76,7 +96,7 @@ is not used directly, instead you run:
 on the test-data/ directory, if it exists, or from the test-data-cache
 git branch.
 
-Caching a recen version of the test-data in a git branch allows for efficient
+Caching a recent version of the test-data in a git branch allows for efficient
 continous integration tests.
 
 License
