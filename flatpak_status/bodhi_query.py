@@ -73,7 +73,7 @@ def _run_query_and_insert(koji_session, db_session, requests_session,
             found_build = False
             for build_json in update_json['builds']:
                 package_name = build_json['nvr'].rsplit('-', 2)[0]
-                if package_name in save_packages:
+                if save_packages is None or package_name in save_packages:
                     found_build = True
             if not found_build:
                 continue
@@ -100,7 +100,7 @@ def _run_query_and_insert(koji_session, db_session, requests_session,
                                                     entity_name=entity_name)
 
                     db_session.add(update_build)
-                    if entity_name in save_packages:
+                    if save_packages is None or entity_name in save_packages:
                         query_build(koji_session, db_session, nvr, entity_cls, build_cls)
 
             for b in old_builds.values():
@@ -203,14 +203,44 @@ def refresh_updates(koji_session, db_session,
             db_session.add(item)
 
 
-def list_updates(db_session, content_type, entity, release_branch=None):
+def refresh_all_updates(koji_session, db_session,
+                        content_type, rows_per_page=100):
+    requests_session = _get_retrying_session()
+
+    cache_item = db_session.query(UpdateCacheItem) \
+                           .filter_by(content_type=content_type,
+                                      package_name='@ALL@') \
+                           .first()
+
+    current_ts = datetime.utcnow()
+    if cache_item:
+        after = cache_item.last_queried - TIMESTAMP_FUZZ
+    else:
+        after = None
+
+    _query_updates(koji_session, db_session, requests_session,
+                   content_type,
+                   after=after,
+                   rows_per_page=rows_per_page)
+
+    if cache_item:
+        cache_item.last_queried = current_ts
+    else:
+        cache_item = UpdateCacheItem(package_name='@ALL@',
+                                     content_type=content_type,
+                                     last_queried=current_ts)
+        db_session.add(cache_item)
+
+
+def list_updates(db_session, content_type, entity=None, release_branch=None):
     """ Returns a list of (PackageUpdateBuild, PackageBuild)"""
     if content_type == 'rpm':
         q = db_session.query(PackageUpdateBuild) \
             .join(PackageBuild, PackageBuild.nvr == PackageUpdateBuild.build_nvr) \
-            .filter(PackageUpdateBuild.entity_name == entity.name) \
             .add_entity(PackageBuild) \
             .options(joinedload(PackageUpdateBuild.update))
+        if entity is not None:
+            q = q.filter(PackageUpdateBuild.entity_name == entity.name)
         if release_branch is not None:
             q = q.join(PackageUpdateBuild.update) \
                  .filter(PackageUpdate.release_branch == release_branch)
@@ -218,9 +248,10 @@ def list_updates(db_session, content_type, entity, release_branch=None):
     elif content_type == 'flatpak':
         q = db_session.query(FlatpakUpdateBuild) \
             .join(FlatpakBuild, FlatpakBuild.nvr == FlatpakUpdateBuild.build_nvr) \
-            .filter(FlatpakUpdateBuild.entity_name == entity.name) \
             .add_entity(FlatpakBuild) \
             .options(joinedload(FlatpakUpdateBuild.update))
+        if entity is not None:
+            q = q.filter(FlatpakUpdateBuild.entity_name == entity.name)
         if release_branch is not None:
             q = q.join(PackageUpdateBuild.update) \
                  .filter(PackageUpdate.release_branch == release_branch)

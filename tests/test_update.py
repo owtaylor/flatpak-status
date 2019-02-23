@@ -17,11 +17,9 @@ def test_flatpak_investigation(session):
     updater = Updater(session, koji_session, distgit)
 
     investigation = Investigation()
-
-    eog_investigation = investigation.add_flatpak('eog')
-    investigation.add_flatpak('feedreader')
-
     investigation.investigate(updater)
+
+    eog_investigation = [i for i in investigation.flatpak_investigations if i.name == 'eog'][0]
 
     packages = eog_investigation.packages
     assert {p.name for p in packages} == set(['eog', 'exempi', 'libpeas', 'gnome-desktop3'])
@@ -72,8 +70,6 @@ def test_flatpak_investigation(session):
     # Try again, check for reduced network traffic
 
     investigation2 = Investigation()
-    investigation2.add_flatpak('eog')
-    investigation2.add_flatpak('feedreader')
     investigation2.investigate(updater)
 
     as_json2 = json.dumps(investigation2, cls=UpdateJsonEncoder, indent=4)

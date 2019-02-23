@@ -65,14 +65,6 @@ def do_update(global_objects, output):
 
     try:
         investigation = Investigation()
-        investigation.add_flatpak('0ad')
-        investigation.add_flatpak('eog')
-        investigation.add_flatpak('feedreader')
-        investigation.add_flatpak('flatpak-runtime')
-        investigation.add_flatpak('gnome-clocks')
-        investigation.add_flatpak('quadrapassel')
-        investigation.add_flatpak('wesnoth')
-
         investigation.investigate(updater)
         updater.db_session.commit()
 

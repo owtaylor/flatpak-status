@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 from rpm import labelCompare
 
-from .bodhi_query import list_updates, refresh_updates
+from .bodhi_query import list_updates, refresh_all_updates, refresh_updates
 from .distgit import OrderingError
 from .koji_query import list_flatpak_builds, refresh_flatpak_builds
 from .models import Flatpak
@@ -266,18 +266,19 @@ class Investigation:
     def __init__(self):
         self.flatpak_investigations = []
 
-    def add_flatpak(self, flatpak_name):
-        investigation = FlatpakInvestigation(flatpak_name)
-        self.flatpak_investigations.append(investigation)
-
-        return investigation
-
     def investigate(self, updater):
         # Make sure we have the most recent information about Flatpak updates
-        refresh_updates(updater.koji_session, updater.db_session,
-                        'flatpak',
-                        [i.name for i in self.flatpak_investigations])
+        refresh_all_updates(updater.koji_session, updater.db_session,
+                            'flatpak')
         updater.db_session.commit()
+
+        flatpak_names = set()
+        for update_build, build in list_updates(updater.db_session, 'flatpak'):
+            flatpak_names.add(build.nvr.rsplit('-', 2)[0])
+
+        for name in sorted(flatpak_names):
+            investigation = FlatpakInvestigation(name)
+            self.flatpak_investigations.append(investigation)
 
         # Make sure we have the most recent information about Flatpak builds
         refresh_flatpak_builds(updater.koji_session, updater.db_session,
