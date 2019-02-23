@@ -8,11 +8,10 @@ import time
 import click
 import fedmsg
 import koji
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from .db import get_engine
 from .distgit import DistGit
-from .models import Base
 from .update import Investigation, UpdateJsonEncoder, Updater
 
 logger = logging.getLogger(__name__)
@@ -37,13 +36,7 @@ def cli(ctx, cache_dir, verbose):
 
 class GlobalObjects:
     def __init__(self, cache_dir, mirror_existing=True):
-        db_file = os.path.join(cache_dir, 'status.db')
-        existed = os.path.exists(db_file)
-
-        engine = create_engine('sqlite:///' + db_file, echo=False)
-        if not existed:
-            Base.metadata.create_all(engine)
-
+        engine = get_engine(cache_dir)
         self.session_constructor = sessionmaker(bind=engine)
 
         options = koji.read_config(profile_name='koji', user_config=None)
