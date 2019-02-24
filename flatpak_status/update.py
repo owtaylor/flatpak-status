@@ -115,19 +115,15 @@ class PackageBuildInvestigation:
                         package.name)
             ordered_commits = nvr_order
 
-        latest_stable = None
-        latest_testing = None
         for c in ordered_commits:
             c_update, c_build = commit_to_update[c]
-            if c_update and c_update.status == 'stable' and not latest_stable:
-                latest_stable = PackageBuildInvestigationItem(c, c_build, c_update)
-                self.items.append(latest_stable)
-            elif (c_update and c_update.status == 'testing' and
-                  not latest_stable and not latest_testing):
-                latest_testing = PackageBuildInvestigationItem(c, c_build, c_update)
-                self.items.append(latest_testing)
+            if c_update and (c_update.status == 'stable' or c_update.status == 'testing'):
+                self.items.append(PackageBuildInvestigationItem(c, c_build, c_update))
             elif c == self.commit:
                 self.items.append(PackageBuildInvestigationItem(c, self.build, None))
+
+            if c == self.commit:
+                break
 
     def to_json(self):
         result = {

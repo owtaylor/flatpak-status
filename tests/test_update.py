@@ -53,8 +53,8 @@ def test_flatpak_investigation(session):
     assert gnome_desktop3_pi.items[0].build.nvr == 'gnome-desktop3-3.30.2.1-1.fc29'
     assert gnome_desktop3_pi.items[0].update.status == 'stable'
     assert gnome_desktop3_pi.items[1].commit == '647d07b80231a012e94cef368750616ca7999b3b'
-    assert gnome_desktop3_pi.items[1].build.nvr == 'gnome-desktop3-3.30.2-1.module_2527+fe3b0de4'
-    assert gnome_desktop3_pi.items[1].update is None
+    assert gnome_desktop3_pi.items[1].build.nvr == 'gnome-desktop3-3.30.2-1.fc29'
+    assert gnome_desktop3_pi.items[1].update.status == 'stable'
 
     as_json = json.dumps(investigation, cls=UpdateJsonEncoder, indent=4)
     data = json.loads(as_json)
