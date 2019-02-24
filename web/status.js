@@ -89,9 +89,10 @@ Vue.component('flatpak-build', {
         <div class="build">
           <div :class="{header: true, expanded: expanded, bad: !good}"
                @click="toggleExpanded">{{ build.nvr }}
-               <links :buildId="build.build_id"
-                      :updateId="build.update_id"
-                      :updateStatus="build.update_status"></links>
+               <links :build-id="build.build_id"
+                      :update-id="build.update_id"
+                      :update-status="build.update_status"
+                      :update-type="build.update_type"></links>
           </div>
           <div v-if="expanded">
               <flatpak-package v-for="pkg in build.packages"
@@ -142,6 +143,7 @@ Vue.component('links', {
         'buildId': Number,
         'updateId': String,
         'updateStatus': String,
+        'updateType': String,
     },
     computed: {
         buildUrl() {
@@ -158,7 +160,11 @@ Vue.component('links', {
             <a :class="{'update-link': true,
                         stable: updateStatus == 'stable',
                         testing: updateStatus == 'testing',
-                        pending: updateStatus == 'pending'}"
+                        pending: updateStatus == 'pending',
+                        newpackage: updateType == 'newpackage',
+                        bugfix: updateType == 'bugfix',
+                        enhancement: updateType == 'enhancement',
+                        security: updateType == 'security'}"
                v-if="updateId"
                :href="updateUrl"
                target="bodhi">update:{{updateStatus}}</a>
@@ -229,7 +235,8 @@ Vue.component('history-item', {
             </commit> - {{ item.nvr }}
             <links :build-id="item.build_id"
                    :update-id="item.update_id"
-                   :update-status="item.update_status"></links>
+                   :update-status="item.update_status"
+                   :update-type="item.update_type"></links>
         </div>
     `,
 });

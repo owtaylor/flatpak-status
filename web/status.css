@@ -106,3 +106,18 @@ body {
     text-decoration: none;
     color: #aa2288;
 }
+.update-link::before {
+    content: "X";
+}
+.update-link.bugfix::before {
+    content: "\1f41b";
+}
+.update-link.enhancement::before {
+    content: "\2197";
+}
+.update-link.security::before {
+    content: "\1f511";
+}
+.update-link.newpackage::before {
+    content: "\1F4E6";
+}
