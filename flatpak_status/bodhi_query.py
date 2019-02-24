@@ -88,6 +88,9 @@ def _run_query_and_insert(koji_session, db_session, requests_session,
                                     status=update_json['status'],
                                     type=update_json['type'])
                 db_session.add(update)
+            else:
+                update.status = update_json['status']
+                update.type = update_json['type']
 
             old_builds = {b.build_nvr: b for b in update.builds}
             for build_json in update_json['builds']:
