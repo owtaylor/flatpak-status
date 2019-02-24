@@ -85,7 +85,8 @@ def _run_query_and_insert(koji_session, db_session, requests_session,
                 update = update_cls(bodhi_update_id=update_json['updateid'],
                                     release_name=update_json['release']['name'],
                                     release_branch=update_json['release']['branch'],
-                                    status=update_json['status'])
+                                    status=update_json['status'],
+                                    type=update_json['type'])
                 db_session.add(update)
 
             old_builds = {b.build_nvr: b for b in update.builds}

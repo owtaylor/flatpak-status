@@ -48,6 +48,7 @@ class PackageBuildInvestigationItem:
         if self.update is not None:
             result['update_id'] = self.update.bodhi_update_id
             result['update_status'] = self.update.status
+            result['update_type'] = self.update.type
 
         return result
 
@@ -177,6 +178,7 @@ class FlatpakBuildInvestigation:
         if self.update is not None:
             result['update_id'] = self.update.bodhi_update_id
             result['update_status'] = self.update.status
+            result['update_type'] = self.update.type
 
         return result
 

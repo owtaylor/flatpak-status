@@ -158,6 +158,7 @@ class BodhiUpdate:
     release_name = Column(String, index=True)
     release_branch = Column(String, index=True)
     status = Column(String)
+    type = Column(String, nullable=False)
 
 
 class PackageUpdate(Base, BodhiUpdate):

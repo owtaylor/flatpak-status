@@ -26,6 +26,7 @@ def test_bodhi_query_package_updates(session):
     assert isinstance(update_build, PackageUpdateBuild)
     assert update_build.build_nvr == 'bubblewrap-0.3.0-2.fc28'
     assert update_build.update.status == 'stable'
+    assert update_build.update.type == 'enhancement'
     assert isinstance(build, PackageBuild)
     assert build.nvr == 'bubblewrap-0.3.0-2.fc28'
 
@@ -51,6 +52,7 @@ def test_bodhi_query_flatpak_updates(session):
     assert isinstance(update_build, FlatpakUpdateBuild)
     assert update_build.build_nvr == 'feedreader-master-2920190201225359.1'
     assert update_build.update.status == 'obsolete'
+    assert update_build.update.type == 'bugfix'
     assert isinstance(build, FlatpakBuild)
     assert build.nvr == 'feedreader-master-2920190201225359.1'
 
