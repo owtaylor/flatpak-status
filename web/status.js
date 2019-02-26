@@ -4,6 +4,14 @@ function nvrSplit(nvr) {
     return /(.*)-([^-]*)-([^-]*)/.exec(nvr).slice(1);
 }
 
+function  makeBuildUrl(buildId) {
+    return `https://koji.fedoraproject.org/koji/buildinfo?buildID=${buildId}`;
+}
+
+function makeUpdateUrl(updateId) {
+    return `https://bodhi.fedoraproject.org/updates/${updateId}`;
+}
+
 function isPackageGood(pkg) {
     return (pkg.commit == pkg.history[0].commit ||
             (pkg.history.length > 1 && (pkg.history[0].update_status == 'testing' &&
@@ -18,6 +26,21 @@ function isFlatpakBuildGood(flatpak) {
     }
 
     return true;
+}
+
+function flatpakBuildStatusString(flatpak) {
+    let badPackages = []
+    for (const pkg of flatpak.packages) {
+        if (!isPackageGood(pkg)) {
+            badPackages.push(nvrSplit(pkg.nvr)[0]);
+        }
+    }
+
+    if (badPackages.length == 0) {
+        return "All packages up to date";
+    } else {
+        return "Out-of-date: " + badPackages.join(", ");
+    }
 }
 
 function isFlatpakGood(flatpak) {
@@ -76,8 +99,17 @@ Vue.component('flatpak-build', {
         };
     },
     computed: {
+        buildUrl() {
+            return makeBuildUrl(this.build.build_id);
+        },
+        updateUrl() {
+            return makeUpdateUrl(this.build.update_id);
+        },
         good() {
             return isFlatpakBuildGood(this.build);
+        },
+        statusString() {
+            return flatpakBuildStatusString(this.build);
         },
     },
     methods: {
@@ -95,10 +127,25 @@ Vue.component('flatpak-build', {
                       :update-type="build.update_type"></links>
           </div>
           <div v-if="expanded">
-              <flatpak-package v-for="pkg in build.packages"
-                               :pkg="pkg"
-                               :key="pkg.nvr">
-              </flatpak-package>
+              <div class="details">
+                  <table>
+                       <tr>
+                           <td>Status:</td><td>{{statusString}}</td>
+                       </tr>
+                       <tr>
+                           <td><a class="build-link" :href="buildUrl">Build</a>:</td><td>{{build.build_id}}</td>
+                       </tr>
+                       <tr v-if="build.update_id">
+                           <td><a class="update-link" :href="updateUrl">Update</a>:</td><td>{{build.update_id}}, {{build.update_status}}, {{build.update_type}}</td>
+                       </tr>
+                  </table>
+              </div>
+              <div class="packages">
+                  <flatpak-package v-for="pkg in build.packages"
+                                   :pkg="pkg"
+                                   :key="pkg.nvr">
+                  </flatpak-package>
+              </div>
           </div>
         </div>
     `,
@@ -147,10 +194,10 @@ Vue.component('links', {
     },
     computed: {
         buildUrl() {
-            return `https://koji.fedoraproject.org/koji/buildinfo?buildID=${this.buildId}`;
+            return makeBuildUrl(this.buildId);
         },
         updateUrl() {
-            return `https://bodhi.fedoraproject.org/updates/${this.updateId}`;
+            return makeUpdateUrl(this.updateId);
         },
     },
     template: `
@@ -198,9 +245,6 @@ Vue.component('flatpak-package', {
         <div :class="{ package: true, 'package-bad': !good }">
           <div :class="{header: true, expanded: expanded}"
                @click="toggleExpanded">
-            <commit :commit="pkg.commit"
-                    :package-name="name"
-                    :package-branch="pkg.branch"></commit> -
             {{ pkg.nvr | nvrAbbrev }}<template v-if="pkg.module_build_nvr"> -
                 <module-build :nvr="pkg.module_build_nvr"
                               :build-id="pkg.module_build_id">

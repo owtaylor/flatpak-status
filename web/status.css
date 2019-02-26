@@ -28,29 +28,35 @@ body {
 }
 .build {
     margin-top: 10px;
-    padding: 5px;
     border: 1px solid black;
 }
 .build > .header {
-    margin: -5px -5px -5px -5px;
     padding: 5px;
     font-size: 110%;
 }
 .build > .header::before {
+    font: Noto Color Emoji, Sans;
     width: 1.5em;
     display: inline-block;
-    content: "\1F4E6";
+    content: "\2705";
 }
 .build > .header.bad::before {
     content: "\1F6D1";
 }
 .build > .header.expanded {
-    margin: -5px -5px -5px -5px;
-    padding: 5px;
     font-size: 110%;
-    margin-bottom: 5px;
     border-bottom: 1px solid #aaaaaa;
 }
+
+.build .packages {
+    padding-bottom: 5px;
+}
+
+.build .details {
+    border-bottom: 1px solid #aaaaaa;
+    padding: 5px;
+}
+
 .package {
     margin-left: 2em;
     margin-top: 5px;
@@ -107,7 +113,7 @@ body {
     color: #aa2288;
 }
 .update-link::before {
-    content: "X";
+    font-family: Noto Color Emoji, sans;
 }
 .update-link.bugfix::before {
     content: "\1f41b";
@@ -116,8 +122,8 @@ body {
     content: "\2197";
 }
 .update-link.security::before {
-    content: "\1f511";
+    content: "\1f6e1";
 }
 .update-link.newpackage::before {
-    content: "\1F4E6";
+    content: "\1f4e6";
 }
