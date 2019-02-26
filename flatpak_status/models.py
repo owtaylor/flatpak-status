@@ -33,6 +33,7 @@ class KojiBuild:
     nvr = Column(String, nullable=False, index=True)
     source = Column(String)
     completion_time = Column(DateTime)
+    user_name = Column(String, nullable=False)
 
 
 class Flatpak(Base, KojiEntity):
@@ -159,6 +160,8 @@ class BodhiUpdate:
     release_branch = Column(String, index=True)
     status = Column(String)
     type = Column(String, nullable=False)
+    date_submitted = Column(DateTime, nullable=False)
+    user_name = Column(String, nullable=False)
 
 
 class PackageUpdate(Base, BodhiUpdate):

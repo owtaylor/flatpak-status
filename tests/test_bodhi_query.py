@@ -23,6 +23,10 @@ def test_bodhi_query_package_updates(session):
     assert len(selected) == 1
 
     update_build, build = selected[0]
+
+    assert update_build.update.user_name == 'walters'
+    assert update_build.update.date_submitted.strftime("%Y-%m-%d %H:%M:%S") == '2018-07-26 18:59:31'
+
     assert isinstance(update_build, PackageUpdateBuild)
     assert update_build.build_nvr == 'bubblewrap-0.3.0-2.fc28'
     assert update_build.update.status == 'stable'
@@ -49,6 +53,10 @@ def test_bodhi_query_flatpak_updates(session):
     assert len(selected) == 1
 
     update_build, build = selected[0]
+
+    assert update_build.update.user_name == 'pwalter'
+    assert update_build.update.date_submitted.strftime("%Y-%m-%d %H:%M:%S") == '2019-02-03 21:08:49'
+
     assert isinstance(update_build, FlatpakUpdateBuild)
     assert update_build.build_nvr == 'feedreader-master-2920190201225359.1'
     assert update_build.update.status == 'obsolete'

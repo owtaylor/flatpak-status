@@ -33,6 +33,7 @@ def _get_build(koji_session, session, build_info, entity, entity_cls, build_cls)
                       koji_build_id=build_info['build_id'],
                       nvr=build_info['nvr'],
                       source=build_info['source'],
+                      user_name=build_info['owner_name'],
                       completion_time=completion_time)
     session.add(build)
 

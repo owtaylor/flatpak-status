@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 import requests
@@ -23,6 +23,10 @@ ALL_UPDATES_MAX_INTERVAL = timedelta(days=1)
 # When querying Koji for events that happened since we last queried, we
 # allow a timestamp offset of this much
 TIMESTAMP_FUZZ = timedelta(minutes=1)
+
+
+def parse_date_value(value):
+    return datetime.strptime(value, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
 
 
 def _get_retrying_session():
@@ -85,6 +89,8 @@ def _run_query_and_insert(koji_session, db_session, requests_session,
                 update = update_cls(bodhi_update_id=update_json['updateid'],
                                     release_name=update_json['release']['name'],
                                     release_branch=update_json['release']['branch'],
+                                    date_submitted=parse_date_value(update_json['date_submitted']),
+                                    user_name=update_json['user']['name'],
                                     status=update_json['status'],
                                     type=update_json['type'])
                 db_session.add(update)

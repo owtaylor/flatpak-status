@@ -168,6 +168,7 @@ class FlatpakBuildInvestigation:
     def to_json(self):
         result = {
             'nvr': self.build.nvr,
+            'build_id': self.build.koji_build_id,
             'packages': self.package_investigations
         }
 
