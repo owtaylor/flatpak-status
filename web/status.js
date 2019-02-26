@@ -201,7 +201,7 @@ Vue.component('flatpak-package', {
             <commit :commit="pkg.commit"
                     :package-name="name"
                     :package-branch="pkg.branch"></commit> -
-            {{ pkg.nvr }}<template v-if="pkg.module_build_nvr"> -
+            {{ pkg.nvr | nvrAbbrev }}<template v-if="pkg.module_build_nvr"> -
                 <module-build :nvr="pkg.module_build_nvr"
                               :build-id="pkg.module_build_id">
                 </module-build>
@@ -232,7 +232,7 @@ Vue.component('history-item', {
             <commit :commit="item.commit"
                     :package-name="packageName"
                     :package-branch="packageBranch">
-            </commit> - {{ item.nvr }}
+            </commit> - {{ item.nvr | nvrAbbrev }}
             <links :build-id="item.build_id"
                    :update-id="item.update_id"
                    :update-status="item.update_status"
@@ -240,6 +240,10 @@ Vue.component('history-item', {
         </div>
     `,
 });
+
+Vue.filter('nvrAbbrev', function (nvr) {
+    return /^(.*?)(?:\.module_[^-]+)?$/.exec(nvr)[1];
+})
 
 const app = new Vue({
     el: '#app',
