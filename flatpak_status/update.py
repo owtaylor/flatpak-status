@@ -37,23 +37,31 @@ def _time_to_json(dt):
     return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
-def _build_to_json(build):
-    return {
+def _build_to_json(build, include_details=False):
+    result = {
         'id': build.koji_build_id,
         'nvr': build.nvr,
-        'user_name': build.user_name,
-        'completion_time': _time_to_json(build.completion_time),
     }
 
+    if include_details:
+        result['user_name'] = build.user_name
+        result['completion_time'] = _time_to_json(build.completion_time)
 
-def _update_to_json(update):
-    return {
+    return result
+
+
+def _update_to_json(update, include_details=False):
+    result = {
         'id': update.bodhi_update_id,
         'status': update.status,
         'type': update.type,
-        'user_name': update.user_name,
-        'date_submitted': _time_to_json(update.date_submitted),
     }
+
+    if include_details:
+        result['user_name'] = update.user_name
+        result['date_submitted'] = _time_to_json(update.date_submitted)
+
+    return result
 
 
 class PackageBuildInvestigationItem:
@@ -185,13 +193,12 @@ class FlatpakBuildInvestigation:
 
     def to_json(self):
         result = {
-            'build': _build_to_json(self.build),
-            'build_id': self.build.koji_build_id,
+            'build': _build_to_json(self.build, include_details=True),
             'packages': self.package_investigations
         }
 
         if self.update is not None:
-            result['update'] = _update_to_json(self.update)
+            result['update'] = _update_to_json(self.update, include_details=True)
 
         return result
 
