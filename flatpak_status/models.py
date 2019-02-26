@@ -10,7 +10,7 @@ class Base:
 
 # Package in Koji terms, but Package/Module/Flatpak
 class KojiEntity:
-    name = Column(String, index=True)
+    name = Column(String, index=True, nullable=False)
     koji_package_id = Column(Integer, nullable=False)
 
     @classmethod
@@ -32,7 +32,7 @@ class KojiBuild:
     koji_build_id = Column(Integer, nullable=False, index=True)
     nvr = Column(String, nullable=False, index=True)
     source = Column(String)
-    completion_time = Column(DateTime)
+    completion_time = Column(DateTime, nullable=False)
     user_name = Column(String, nullable=False)
 
 
@@ -48,7 +48,7 @@ class Flatpak(Base, KojiEntity):
 class FlatpakBuild(Base, KojiBuild):
     __tablename__ = 'flatpak_builds'
 
-    entity_id = Column(Integer, ForeignKey('flatpaks.id'))
+    entity_id = Column(Integer, ForeignKey('flatpaks.id'), nullable=False)
     entity = relationship("Flatpak", back_populates="builds")
 
     def list_package_builds(self):
@@ -68,10 +68,10 @@ Flatpak.builds = relationship("FlatpakBuild", back_populates="entity")
 class FlatpakBuildPackageBuild(Base):
     __tablename__ = 'flatpak_build_package_builds'
 
-    flatpak_build_id = Column(Integer, ForeignKey('flatpak_builds.id'))
+    flatpak_build_id = Column(Integer, ForeignKey('flatpak_builds.id'), nullable=False)
     flatpak_build = relationship("FlatpakBuild", back_populates="package_builds")
 
-    package_build_id = Column(Integer, ForeignKey('package_builds.id'))
+    package_build_id = Column(Integer, ForeignKey('package_builds.id'), nullable=False)
     package_build = relationship("PackageBuild")
 
 
@@ -83,10 +83,10 @@ FlatpakBuild.package_builds = relationship("FlatpakBuildPackageBuild",
 class FlatpakBuildModuleBuild(Base):
     __tablename__ = 'flatpak_build_module_builds'
 
-    flatpak_build_id = Column(Integer, ForeignKey('flatpak_builds.id'))
+    flatpak_build_id = Column(Integer, ForeignKey('flatpak_builds.id'), nullable=False)
     flatpak_build = relationship("FlatpakBuild", back_populates="module_builds")
 
-    module_build_id = Column(Integer, ForeignKey('module_builds.id'))
+    module_build_id = Column(Integer, ForeignKey('module_builds.id'), nullable=False)
     module_build = relationship("ModuleBuild")
 
 
@@ -105,7 +105,7 @@ class Module(Base, KojiEntity):
 class ModuleBuild(Base, KojiBuild):
     __tablename__ = 'module_builds'
 
-    entity_id = Column(Integer, ForeignKey('modules.id'))
+    entity_id = Column(Integer, ForeignKey('modules.id'), nullable=False)
     entity = relationship("Module", back_populates="builds")
 
     flatpak = relationship("Module", back_populates="builds")
@@ -120,10 +120,10 @@ Module.builds = relationship("ModuleBuild", back_populates="entity")
 class ModuleBuildPackageBuild(Base):
     __tablename__ = 'module_build_package_builds'
 
-    module_build_id = Column(Integer, ForeignKey('module_builds.id'))
+    module_build_id = Column(Integer, ForeignKey('module_builds.id'), nullable=False)
     module_build = relationship("ModuleBuild", back_populates="package_builds")
 
-    package_build_id = Column(Integer, ForeignKey('package_builds.id'))
+    package_build_id = Column(Integer, ForeignKey('package_builds.id'), nullable=False)
     package_build = relationship("PackageBuild")
 
 
@@ -142,7 +142,7 @@ class Package(Base, KojiEntity):
 class PackageBuild(Base, KojiBuild):
     __tablename__ = 'package_builds'
 
-    entity_id = Column(Integer, ForeignKey('packages.id'))
+    entity_id = Column(Integer, ForeignKey('packages.id'), nullable=False)
     entity = relationship("Package", back_populates="builds")
 
     package = relationship("Package", back_populates="builds")
@@ -155,10 +155,10 @@ Package.builds = relationship("PackageBuild", back_populates="entity")
 
 
 class BodhiUpdate:
-    bodhi_update_id = Column(String)
-    release_name = Column(String, index=True)
-    release_branch = Column(String, index=True)
-    status = Column(String)
+    bodhi_update_id = Column(String, nullable=False)
+    release_name = Column(String, nullable=False, index=True)
+    release_branch = Column(String, nullable=False, index=True)
+    status = Column(String, nullable=False)
     type = Column(String, nullable=False)
     date_submitted = Column(DateTime, nullable=False)
     user_name = Column(String, nullable=False)
@@ -171,7 +171,7 @@ class PackageUpdate(Base, BodhiUpdate):
 class PackageUpdateBuild(Base):
     __tablename__ = 'package_update_builds'
 
-    update_id = Column(Integer, ForeignKey('package_updates.id'))
+    update_id = Column(Integer, ForeignKey('package_updates.id'), nullable=False)
     update = relationship("PackageUpdate", back_populates="builds")
 
     build_nvr = Column(String, nullable=False)
@@ -188,7 +188,7 @@ class FlatpakUpdate(Base, BodhiUpdate):
 class FlatpakUpdateBuild(Base):
     __tablename__ = 'flatpak_update_builds'
 
-    update_id = Column(Integer, ForeignKey('flatpak_updates.id'))
+    update_id = Column(Integer, ForeignKey('flatpak_updates.id'), nullable=False)
     update = relationship("FlatpakUpdate", back_populates="builds")
 
     build_nvr = Column(String, nullable=False)
@@ -203,7 +203,7 @@ class BuildCacheItem(Base):
 
     package_name = Column(String, nullable=False)
     koji_type = Column(String, nullable=False)
-    last_queried = Column(DateTime)
+    last_queried = Column(DateTime, nullable=False)
 
 
 class UpdateCacheItem(Base):
@@ -211,4 +211,4 @@ class UpdateCacheItem(Base):
 
     content_type = Column(String, nullable=False)
     package_name = Column(String, nullable=False)
-    last_queried = Column(DateTime)
+    last_queried = Column(DateTime, nullable=False)
