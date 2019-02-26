@@ -33,6 +33,29 @@ class Updater:
         self.package_investigation_cache = {}
 
 
+def _time_to_json(dt):
+    return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def _build_to_json(build):
+    return {
+        'id': build.koji_build_id,
+        'nvr': build.nvr,
+        'user_name': build.user_name,
+        'completion_time': _time_to_json(build.completion_time),
+    }
+
+
+def _update_to_json(update):
+    return {
+        'id': update.bodhi_update_id,
+        'status': update.status,
+        'type': update.type,
+        'user_name': update.user_name,
+        'date_submitted': _time_to_json(update.date_submitted),
+    }
+
+
 class PackageBuildInvestigationItem:
     def __init__(self, commit, build, update):
         self.commit = commit
@@ -42,13 +65,10 @@ class PackageBuildInvestigationItem:
     def to_json(self):
         result = {
             'commit': self.commit,
-            'nvr': self.build.nvr,
-            'build_id': self.build.koji_build_id,
+            'build': _build_to_json(self.build),
         }
         if self.update is not None:
-            result['update_id'] = self.update.bodhi_update_id
-            result['update_status'] = self.update.status
-            result['update_type'] = self.update.type
+            result['update'] = _update_to_json(self.update)
 
         return result
 
@@ -127,15 +147,13 @@ class PackageBuildInvestigation:
 
     def to_json(self):
         result = {
-            'nvr': self.build.nvr,
-            'build_id': self.build.koji_build_id,
+            'build': _build_to_json(self.build),
             'branch': self.branch,
             'commit': self.commit,
             'history': self.items,
         }
         if self.module_build:
-            result['module_build_nvr'] = self.module_build.nvr
-            result['module_build_id'] = self.module_build.koji_build_id
+            result['module_build'] = _build_to_json(self.module_build)
         return result
 
 
@@ -167,15 +185,13 @@ class FlatpakBuildInvestigation:
 
     def to_json(self):
         result = {
-            'nvr': self.build.nvr,
+            'build': _build_to_json(self.build),
             'build_id': self.build.koji_build_id,
             'packages': self.package_investigations
         }
 
         if self.update is not None:
-            result['update_id'] = self.update.bodhi_update_id
-            result['update_status'] = self.update.status
-            result['update_type'] = self.update.type
+            result['update'] = _update_to_json(self.update)
 
         return result
 

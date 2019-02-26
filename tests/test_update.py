@@ -65,7 +65,7 @@ def test_flatpak_investigation(session):
     assert len(feedreader_data['builds']) == 2
 
     build_data = feedreader_data['builds'][0]
-    assert build_data['nvr'] == 'feedreader-master-2920190201225359.1'
+    assert build_data['build']['nvr'] == 'feedreader-master-2920190201225359.1'
 
     # Try again, check for reduced network traffic
 

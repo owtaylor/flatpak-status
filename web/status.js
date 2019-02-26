@@ -4,12 +4,20 @@ function nvrSplit(nvr) {
     return /(.*)-([^-]*)-([^-]*)/.exec(nvr).slice(1);
 }
 
-function  makeBuildUrl(buildId) {
-    return `https://koji.fedoraproject.org/koji/buildinfo?buildID=${buildId}`;
+function makeBuildUrl(build) {
+    return `https://koji.fedoraproject.org/koji/buildinfo?buildID=${build.id}`;
 }
 
-function makeUpdateUrl(updateId) {
-    return `https://bodhi.fedoraproject.org/updates/${updateId}`;
+function makeUpdateUrl(update) {
+    return `https://bodhi.fedoraproject.org/updates/${update.id}`;
+}
+
+function makeUpdateLinkClass(update) {
+    const result = {'update-link': true};
+    result[update.status] = true;
+    result[update.type] = true;
+
+    return result;
 }
 
 function isPackageGood(pkg) {
@@ -29,17 +37,17 @@ function isFlatpakBuildGood(flatpak) {
 }
 
 function flatpakBuildStatusString(flatpak) {
-    let badPackages = []
+    const badPackages = [];
     for (const pkg of flatpak.packages) {
         if (!isPackageGood(pkg)) {
-            badPackages.push(nvrSplit(pkg.nvr)[0]);
+            badPackages.push(nvrSplit(pkg.build.nvr)[0]);
         }
     }
 
     if (badPackages.length == 0) {
-        return "All packages up to date";
+        return 'All packages up to date';
     } else {
-        return "Out-of-date: " + badPackages.join(", ");
+        return 'Out-of-date: ' + badPackages.join(', ');
     }
 }
 
@@ -73,7 +81,8 @@ Vue.component('flatpak-details', {
     },
     methods: {
         shouldExpand(build) {
-            return build.nvr == this.flatpak.builds[0].nvr && !isFlatpakBuildGood(build);
+            return (build.build.nvr == this.flatpak.builds[0].build.nvr &&
+                    !isFlatpakBuildGood(build));
         },
     },
     template: `
@@ -81,7 +90,7 @@ Vue.component('flatpak-details', {
             <div class="header" :id="flatpak.name"> {{ flatpak.name }}</div>
             <flatpak-build v-for="build in flatpak.builds"
                            :build="build"
-                           :key="build.nvr"
+                           :key="build.build.nvr"
                            :initial-expand="shouldExpand(build)">
             </flatpak-build>
        </div>
@@ -100,10 +109,13 @@ Vue.component('flatpak-build', {
     },
     computed: {
         buildUrl() {
-            return makeBuildUrl(this.build.build_id);
+            return makeBuildUrl(this.build.build);
         },
         updateUrl() {
-            return makeUpdateUrl(this.build.update_id);
+            return makeUpdateUrl(this.build.update);
+        },
+        updateLinkClass() {
+            return makeUpdateLinkClass(this.build.update);
         },
         good() {
             return isFlatpakBuildGood(this.build);
@@ -120,11 +132,9 @@ Vue.component('flatpak-build', {
     template: `
         <div class="build">
           <div :class="{header: true, expanded: expanded, bad: !good}"
-               @click="toggleExpanded">{{ build.nvr }}
-               <links :build-id="build.build_id"
-                      :update-id="build.update_id"
-                      :update-status="build.update_status"
-                      :update-type="build.update_type"></links>
+               @click="toggleExpanded">{{ build.build.nvr }}
+               <links :build="build.build"
+                      :update="build.update"
           </div>
           <div v-if="expanded">
               <div class="details">
@@ -133,17 +143,24 @@ Vue.component('flatpak-build', {
                            <td>Status:</td><td>{{statusString}}</td>
                        </tr>
                        <tr>
-                           <td><a class="build-link" :href="buildUrl">Build</a>:</td><td>{{build.build_id}}</td>
+                           <td>Build</a:</td>
+                           <td><a class="build-link"
+                                  :href="buildUrl">{{build.build.completion_time | dateFormat}},
+                                                   {{build.build.user_name}}</a></td>
                        </tr>
-                       <tr v-if="build.update_id">
-                           <td><a class="update-link" :href="updateUrl">Update</a>:</td><td>{{build.update_id}}, {{build.update_status}}, {{build.update_type}}</td>
+                       <tr v-if="build.update">
+                           <td>Update:</td>
+                           <td><a :class="updateLinkClass"
+                                  :href="updateUrl">{{build.update.date_submitted | dateFormat}},
+                                                    {{build.update.user_name}},
+                                                    {{build.update.status}}</a></td>
                        </tr>
                   </table>
               </div>
               <div class="packages">
                   <flatpak-package v-for="pkg in build.packages"
                                    :pkg="pkg"
-                                   :key="pkg.nvr">
+                                   :key="pkg.build.nvr">
                   </flatpak-package>
               </div>
           </div>
@@ -171,15 +188,14 @@ Vue.component('commit', {
 
 Vue.component('module-build', {
     props: {
-        'nvr': String,
-        'buildId': Number,
+        'build': Object,
     },
     computed: {
         name() {
-            return nvrSplit(this.nvr)[0];
+            return nvrSplit(this.build.nvr)[0];
         },
         url() {
-            return `https://koji.fedoraproject.org/koji/buildinfo?buildID=${this.buildId}`;
+            return makeBuildUrl(this.build);
         },
     },
     template: `<a class="module-link" :href="url" target="koji">module:{{ name }}</a>`,
@@ -187,34 +203,28 @@ Vue.component('module-build', {
 
 Vue.component('links', {
     props: {
-        'buildId': Number,
-        'updateId': String,
-        'updateStatus': String,
-        'updateType': String,
+        'build': Object,
+        'update': Object,
     },
     computed: {
         buildUrl() {
-            return makeBuildUrl(this.buildId);
+            return makeBuildUrl(this.build);
         },
         updateUrl() {
-            return makeUpdateUrl(this.updateId);
+            return makeUpdateUrl(this.update);
+        },
+        updateLinkClass() {
+            return makeUpdateLinkClass(this.update);
         },
     },
     template: `
         <span>
             <a class="build-link" :href="buildUrl" target="koji">build</a><!--
-                --><template v-if="updateId">,</template>
-            <a :class="{'update-link': true,
-                        stable: updateStatus == 'stable',
-                        testing: updateStatus == 'testing',
-                        pending: updateStatus == 'pending',
-                        newpackage: updateType == 'newpackage',
-                        bugfix: updateType == 'bugfix',
-                        enhancement: updateType == 'enhancement',
-                        security: updateType == 'security'}"
-               v-if="updateId"
+                --><template v-if="update">,</template>
+            <a v-if="update"
+               :class="updateLinkClass"
                :href="updateUrl"
-               target="bodhi">update:{{updateStatus}}</a>
+               target="bodhi">update:{{update.status}}</a>
         </span>
     `,
 });
@@ -230,7 +240,7 @@ Vue.component('flatpak-package', {
     },
     computed: {
         name() {
-            return nvrSplit(this.pkg.nvr)[0];
+            return nvrSplit(this.pkg.build.nvr)[0];
         },
         good() {
             return isPackageGood(this.pkg);
@@ -245,9 +255,8 @@ Vue.component('flatpak-package', {
         <div :class="{ package: true, 'package-bad': !good }">
           <div :class="{header: true, expanded: expanded}"
                @click="toggleExpanded">
-            {{ pkg.nvr | nvrAbbrev }}<template v-if="pkg.module_build_nvr"> -
-                <module-build :nvr="pkg.module_build_nvr"
-                              :build-id="pkg.module_build_id">
+            {{ pkg.build.nvr | nvrAbbrev }}<template v-if="pkg.module_build"> -
+                <module-build :build="pkg.module_build">
                 </module-build>
             </template>
           </div>
@@ -276,18 +285,28 @@ Vue.component('history-item', {
             <commit :commit="item.commit"
                     :package-name="packageName"
                     :package-branch="packageBranch">
-            </commit> - {{ item.nvr | nvrAbbrev }}
-            <links :build-id="item.build_id"
-                   :update-id="item.update_id"
-                   :update-status="item.update_status"
-                   :update-type="item.update_type"></links>
+            </commit> - {{ item.build.nvr | nvrAbbrev }}
+            <links :build="item.build"
+                   :update="item.update"></links>
         </div>
     `,
 });
 
-Vue.filter('nvrAbbrev', function (nvr) {
+Vue.filter('nvrAbbrev', function(nvr) {
     return /^(.*?)(?:\.module_[^-]+)?$/.exec(nvr)[1];
-})
+});
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function pad(n) {
+    return n.toString().padStart(2, '0');
+}
+
+Vue.filter('dateFormat', function(date) {
+    const d = new Date(date);
+    return `${d.getFullYear()}-${MONTHS[d.getMonth()]}-${pad(d.getDate())}` +
+        `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+});
 
 const app = new Vue({
     el: '#app',
