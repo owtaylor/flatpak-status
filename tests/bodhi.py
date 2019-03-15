@@ -48,7 +48,7 @@ def get_updates_callback(request):
 
     page = int(params['page'][0])
     rows_per_page = int(params['rows_per_page'][0])
-    content_type = params['content_type'][0]
+    content_type = params.get('content_type', (None,))[0]
     packages = params.get('packages')
 
     submitted_since = _parse_date_param(params, 'submitted_since')
@@ -59,7 +59,7 @@ def get_updates_callback(request):
 
     matched_updates = []
     for update in updates:
-        if update['content_type'] != content_type:
+        if content_type is not None and update['content_type'] != content_type:
             continue
         if packages is not None:
             found = False

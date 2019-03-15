@@ -77,7 +77,8 @@ def _run_query_and_insert(koji_session, db_session, requests_session,
             found_build = False
             for build_json in update_json['builds']:
                 package_name = build_json['nvr'].rsplit('-', 2)[0]
-                if save_packages is None or package_name in save_packages:
+                if (build_json['type'] == content_type and
+                        (save_packages is None or package_name in save_packages)):
                     found_build = True
             if not found_build:
                 continue
@@ -133,8 +134,14 @@ def _query_updates(koji_session, db_session, requests_session,
     params = {
         'rows_per_page': rows_per_page,
         'active_releases': 1,
-        'content_type': content_type
     }
+    # Heuristically, most updates are RPM updates, so specifying
+    # content_type=rpm in the query doesn't reduce the size of the
+    # result set much, but it turns out to make the database query
+    # that Bodhi executes much worse.
+    # https://github.com/fedora-infra/bodhi/issues/3064
+    if content_type != 'rpm':
+        params['content_type'] = content_type
 
     if query_packages is not None:
         if len(query_packages) > 5:
