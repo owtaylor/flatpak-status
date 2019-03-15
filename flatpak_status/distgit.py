@@ -6,6 +6,10 @@ import subprocess
 logger = logging.getLogger(__name__)
 
 
+class GitError(Exception):
+    pass
+
+
 class OrderingError(Exception):
     pass
 
@@ -17,12 +21,18 @@ class GitRepo:
     def do(self, *args):
         full_args = ['git']
         full_args += args
-        subprocess.check_call(full_args, cwd=self.repo_dir)
+        try:
+            subprocess.check_call(full_args, cwd=self.repo_dir)
+        except subprocess.CalledProcessError as e:
+            raise GitError(f"{self.repo_dir}: {e}") from e
 
     def capture(self, *args):
         full_args = ['git']
         full_args += args
-        return subprocess.check_output(full_args, cwd=self.repo_dir, encoding='UTF-8').strip()
+        try:
+            return subprocess.check_output(full_args, cwd=self.repo_dir, encoding='UTF-8').strip()
+        except subprocess.CalledProcessError as e:
+            raise GitError(f"{self.repo_dir}: {e}") from e
 
 
 class DistGitRepo(GitRepo):
