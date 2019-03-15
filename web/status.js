@@ -143,7 +143,7 @@ Vue.component('flatpak-build', {
                            <td>Status:</td><td>{{statusString}}</td>
                        </tr>
                        <tr>
-                           <td>Build</a:</td>
+                           <td>Build</a>:</td>
                            <td><a class="build-link"
                                   :href="buildUrl">{{build.build.completion_time | dateFormat}},
                                                    {{build.build.user_name}}</a></td>
