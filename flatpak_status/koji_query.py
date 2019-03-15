@@ -35,6 +35,10 @@ def _get_build(koji_session, session, build_info, entity, entity_cls, build_cls)
                       source=build_info['source'],
                       user_name=build_info['owner_name'],
                       completion_time=completion_time)
+
+    if entity_cls == Module:
+        build.modulemd = build_info['extra']['typeinfo']['module']['modulemd_str']
+
     session.add(build)
 
     if entity_cls == Flatpak:

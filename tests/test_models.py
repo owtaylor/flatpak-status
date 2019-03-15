@@ -3,6 +3,12 @@ from datetime import datetime
 from flatpak_status.models import Flatpak, FlatpakBuild, Module, ModuleBuild
 
 
+MODULEMD = '''\
+name: eog
+stream: master
+'''
+
+
 def test_module(session):
     f = Module(name='eog', koji_package_id=303)
     session.add(f)
@@ -12,7 +18,8 @@ def test_module(session):
     fb = ModuleBuild(entity=f, nvr='eog-master-12345.212321', koji_build_id=12345,
                      source="https://src.fedoraproject.org/modules/eog.git?#abcd1234",
                      user_name='otaylor',
-                     completion_time=datetime.now())
+                     completion_time=datetime.now(),
+                     modulemd=MODULEMD)
     session.add(f)
 
     assert f.builds == [fb]

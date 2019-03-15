@@ -110,6 +110,8 @@ class ModuleBuild(Base, KojiBuild):
 
     flatpak = relationship("Module", back_populates="builds")
 
+    modulemd = Column(String, nullable=False)
+
     def __repr__(self):
         return f"<Module(name={self.name})>"
 
