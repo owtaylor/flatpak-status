@@ -22,6 +22,9 @@ class MockDistGitRepo:
     def get_branches(self, commit):
         self._load()
 
+        if commit in self._branches:
+            commit = self.rev_parse(commit)
+
         result = []
         for b in sorted(self._branches):
             if commit in self._branches[b]:

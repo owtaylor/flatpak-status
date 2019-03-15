@@ -3,10 +3,12 @@
 import functools
 import json
 import logging
+import re
 from urllib.parse import urlparse
 
 from rpm import labelCompare
 
+from . import Modulemd
 from .bodhi_query import list_updates, refresh_all_updates, refresh_updates
 from .distgit import OrderingError
 from .koji_query import list_flatpak_builds, refresh_flatpak_builds
@@ -87,23 +89,47 @@ def _get_commit(build):
 
 
 class PackageBuildInvestigation:
-    def __init__(self, build, module_build):
+    def __init__(self, build, module_build, module_stream):
         self.build = build
         self.module_build = module_build
+        self.module_stream = module_stream
         self.commit = _get_commit(build)
         self.branch = None
         self.items = []
+
+    def find_branch(self, repo):
+        n, v, r = self.build.nvr.rsplit('-', 2)
+
+        if self.module_stream is not None:
+            # extract a ref from the modulemd
+            rpm_component = self.module_stream.get_rpm_component(n)
+            if rpm_component is None:
+                raise RuntimeError(f"Cannot find {self.build.nvr} in the modulemd")
+
+            ref = rpm_component.get_ref()
+            branches = repo.get_branches(ref)
+            if ref in branches:
+                return ref
+
+            # ref was a commit ID. What we *should* return here is the oldest still-maintained
+            # release that contains the ref.
+            raise RuntimeError(
+                f"{self.build.nvr} was built from ref: {ref}, can't determine branch")
+        else:
+            # Try to parse the disttag
+            m = re.match(r".*\.fc([0-9]+)$", r)
+            if m is not None:
+                return 'f' + m.group(1)
+            elif n in ['fedora-release', 'fedora-repos'] and re.match(r'^\d+$', r):
+                return 'f' + r
+
+            raise RuntimeError(f"Cannot parse disttag for non-modular {self.build.nvr}")
 
     def investigate(self, updater):
         package = self.build.package
         repo = updater.distgit.repo('rpms/' + package.name)
 
-        commit_branches = repo.get_branches(self.commit)
-        if len(commit_branches) > 1:
-            self.branch = [b for b in sorted(commit_branches) if b.startswith('f')][-1]
-        else:
-            self.branch = commit_branches[0]
-
+        self.branch = self.find_branch(repo)
         if self.branch.startswith('f'):
             release_branch = self.branch
         else:
@@ -170,20 +196,40 @@ class FlatpakBuildInvestigation:
         self.build = build
         self.update = update
         self.package_investigations = []
+        self.module_to_module_stream = {}
+
+    def find_module(self, package_build):
+        module_build = None
+        module_stream = None
+        for mb in self.build.module_builds:
+            for mb_pb in mb.module_build.package_builds:
+                if mb_pb.package_build == package_build:
+                    module_build = mb.module_build
+
+        if module_build is not None:
+            module_stream = self.module_to_module_stream.get(module_build.nvr)
+            if module_stream is None:
+                module_index = Modulemd.ModuleIndex.new()
+                module_index.update_from_string(module_build.modulemd, strict=False)
+                module_name, module_stream, _ = module_build.nvr.rsplit('-', 2)
+                module_stream = module_index \
+                    .get_module(module_name) \
+                    .get_streams_by_stream_name(module_stream)[0]
+                self.module_to_module_stream[module_build.nvr] = module_stream
+
+        return module_build, module_stream
 
     def investigate(self, updater):
         for pb in self.build.list_package_builds():
             # Find the module that this package comes from, if any
-            module_build = None
-            for mb in self.build.module_builds:
-                for mb_pb in mb.module_build.package_builds:
-                    if mb_pb.package_build == pb.package_build:
-                        module_build = mb.module_build
+
+            module_build, module_stream = self.find_module(pb.package_build)
 
             key = (pb.package_build.nvr, module_build.nvr if module_build else None)
             package_investigation = updater.package_investigation_cache.get(key)
             if package_investigation is None:
-                package_investigation = PackageBuildInvestigation(pb.package_build, module_build)
+                package_investigation = PackageBuildInvestigation(pb.package_build,
+                                                                  module_build, module_stream)
                 package_investigation.investigate(updater)
                 updater.package_investigation_cache[key] = package_investigation
 

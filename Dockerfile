@@ -7,8 +7,10 @@ RUN dnf -y update && \
     dnf -y install \
         git-core \
         koji \
+        'libmodulemd >= 2.0' \
         pipenv \
         python3-fedmsg \
+        python3-gobject-base \
         python3-koji \
         python3-pip \
         rsync \
