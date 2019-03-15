@@ -64,7 +64,7 @@ Setup
 -----
 
 ``` sh
-dnf install pipenv python3-fedmsg python3-koji python3-pip
+dnf install npm pipenv python3-fedmsg python3-koji python3-pip
 pipenv --three --site-packages
 pipenv install --dev -e .
 pipenv run pip install -e .
