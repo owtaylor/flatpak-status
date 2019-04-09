@@ -171,7 +171,7 @@ def _query_updates(koji_session, db_session, requests_session,
 
 
 def refresh_updates(koji_session, db_session,
-                    content_type, packages, rows_per_page=100):
+                    content_type, packages, rows_per_page=10):
     requests_session = _get_retrying_session()
 
     to_query = set(packages)
@@ -221,7 +221,7 @@ def refresh_updates(koji_session, db_session,
 
 
 def refresh_all_updates(koji_session, db_session,
-                        content_type, rows_per_page=100):
+                        content_type, rows_per_page=10):
     requests_session = _get_retrying_session()
 
     cache_item = db_session.query(UpdateCacheItem) \

@@ -6,7 +6,8 @@ import koji
 from .models import (BuildCacheItem,
                      Flatpak, FlatpakBuild, FlatpakBuildModuleBuild, FlatpakBuildPackageBuild,
                      Module, ModuleBuild, ModuleBuildPackageBuild,
-                     Package, PackageBuild)
+                     Package, PackageBuild,
+                     TagBuild, TagCacheItem)
 
 logger = logging.getLogger(__name__)
 
@@ -208,3 +209,53 @@ def query_build_by_id(koji_session, session, build_id, entity_cls, build_cls,
         raise RuntimeError(f"Could not look up {build_id} in Koji")
 
     return _get_build(koji_session, session, build_info, None, entity_cls, build_cls)
+
+
+def refresh_tag_builds(koji_session, session, tag):
+    cache_item = session.query(TagCacheItem).filter_by(tag=tag).first()
+    if cache_item is not None:
+        latest_event = cache_item.latest_event
+    else:
+        latest_event = None
+
+    old_builds = {}
+    for b in session.query(TagBuild).filter_by(tag=tag):
+        old_builds[b.build_nvr] = b
+
+    kwargs = {
+        'tables': ['tag_listing'],
+        'tag': tag,
+    }
+    if latest_event is not None:
+        kwargs['afterEvent'] = latest_event
+
+    logger.info("Calling koji.getBuild(%s)", kwargs)
+    result = koji_session.queryHistory(**kwargs)['tag_listing']
+    for r in result:
+        create_event = r.get('create_event', None)
+        revoke_event = r.get('revoke_event', None)
+
+        if latest_event is None or create_event > latest_event:
+            latest_event = create_event
+        if latest_event is None or (revoke_event and revoke_event > latest_event):
+            latest_event = revoke_event
+
+        nvr = f"{r['name']}-{r['version']}-{r['release']}"
+        tag_build = old_builds.get(nvr)
+        if revoke_event:
+            if tag_build is not None:
+                session.delete(tag_build)
+        else:
+            if tag_build is None:
+                tag_build = TagBuild(tag=tag, build_nvr=nvr, entity_name=r['name'])
+                session.add(tag_build)
+
+    if cache_item is None:
+        cache_item = TagCacheItem(tag=tag, latest_event=latest_event)
+        session.add(cache_item)
+    else:
+        cache_item.latest_event = latest_event
+
+
+def query_tag_builds(session, tag, entity_name):
+    return session.query(TagBuild).filter_by(tag=tag, entity_name=entity_name).all()

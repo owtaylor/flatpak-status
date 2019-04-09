@@ -200,6 +200,14 @@ class FlatpakUpdateBuild(Base):
 FlatpakUpdate.builds = relationship("FlatpakUpdateBuild", back_populates="update")
 
 
+class TagBuild(Base):
+    __tablename__ = 'tag_builds'
+
+    tag = Column(String, nullable=False)
+    build_nvr = Column(String, nullable=False)
+    entity_name = Column(String, nullable=False, index=True)
+
+
 class BuildCacheItem(Base):
     __tablename__ = 'build_cache_items'
 
@@ -214,3 +222,10 @@ class UpdateCacheItem(Base):
     content_type = Column(String, nullable=False)
     package_name = Column(String, nullable=False)
     last_queried = Column(DateTime, nullable=False)
+
+
+class TagCacheItem(Base):
+    __tablename__ = 'tag_cache_items'
+
+    tag = Column(String, nullable=False, index=True)
+    latest_event = Column(Integer, nullable=False)

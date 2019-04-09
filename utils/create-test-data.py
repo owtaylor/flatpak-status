@@ -16,6 +16,7 @@ import requests
 # The data we use is meant to be a point-in-time snapshot of Fedora at this
 # date.
 DATE = "2019-02-06 00:00:00"
+TAGS = ""
 
 
 def show(msg, indent):
@@ -178,6 +179,31 @@ class Downloader:
 
         return nvr
 
+    def download_tag_data(self, indent=0):
+        self.tagged_packages = {}
+        for tag in ['f28', 'f29']:
+            exists, output_file = self._check_existing(f'tags/{tag}.json.gz')
+            if not exists:
+                show(f'Downloading tag history for {tag}', indent=indent)
+                result = self.koji_session.queryHistory(tables=['tag_listing'], tag=tag)
+                filtered_result = [r
+                                   for r in result['tag_listing']
+                                   if r['name'] in self.image_packages]
+                d = os.path.dirname(output_file)
+                if not os.path.exists(d):
+                    os.makedirs(d)
+                with gzip.open(output_file, 'wt') as f:
+                    json.dump(filtered_result, f, indent=4)
+            else:
+                show(f'Using existing tag history for {tag}', indent=indent)
+                with gzip.open(output_file, 'rt') as f:
+                    filtered_result = json.load(f)
+
+            indent += 4
+            for r in filtered_result:
+                self.download_build(nvr=f"{r['name']}-{r['version']}-{r['release']}",
+                                    indent=indent + 4)
+
     def download_package_details(self, indent=0):
         for package in sorted(self.image_packages):
             self.download_updates('rpm', package, indent)
@@ -305,6 +331,8 @@ def main(output, base):
     downloader.download_updates('flatpak', 'eog')
     downloader.download_updates('flatpak', 'quadrapassel')
     downloader.download_build(nvr='eog-master-20180821163756.2')
+
+    downloader.download_tag_data()
 
     downloader.download_package_details()
 

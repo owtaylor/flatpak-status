@@ -8,18 +8,34 @@ import koji
 
 
 _builds = []
+_tags = {}
+
+
+def data_dir(subdir):
+    return os.path.join(os.path.dirname(__file__), '../test-data', subdir)
 
 
 def _load_builds():
     if len(_builds) == 0:
-        data_dir = os.path.join(os.path.dirname(__file__), '../test-data/builds')
-        for child in os.listdir(data_dir):
-            if not child.endswith('.json.gz'):
+        for child in os.scandir(data_dir('builds')):
+            if not child.name.endswith('.json.gz'):
                 continue
-            with gzip.open(os.path.join(data_dir, child), 'rt') as f:
+            with gzip.open(child.path, 'rt') as f:
                 _builds.append(json.load(f))
 
     return _builds
+
+
+def _load_tags():
+    if len(_tags) == 0:
+        for child in os.scandir(data_dir('tags')):
+            if not child.name.endswith('.json.gz'):
+                continue
+            tag = child.name[:-8]
+            with gzip.open(child.path, 'rt') as f:
+                _tags[tag] = json.load(f)
+
+    return _tags
 
 
 def mock_get_package_id(name):
@@ -115,7 +131,38 @@ def mock_list_rpms(imageID=None):
     raise RuntimeError(f"Image id={imageID} not found")
 
 
-def make_koji_session():
+def make_mock_query_history(tagQueryTimestamp):
+    def mock_query_history(tables=None, tag=None, afterEvent=None):
+        assert tables == ['tag_listing']
+        assert tag is not None
+
+        result = []
+        tags = _load_tags()
+        for item in tags.get(tag, ()):
+            if tagQueryTimestamp:
+                if item['create_ts'] > tagQueryTimestamp:
+                    continue
+
+                if item['revoke_ts'] is not None and item['revoke_ts'] > tagQueryTimestamp:
+                    item = item.copy()
+                    item['revoke_ts'] = None
+                    item['revoke_event'] = None
+                    item['revoker_id'] = None
+                    item['rovoker_name'] = None
+
+            if afterEvent:
+                if not (item['create_event'] > afterEvent or
+                        item['revoke_event'] and item['revoke_event'] > afterEvent):
+                    continue
+
+            result.append(item)
+
+        return {'tag_listing': result}
+
+    return mock_query_history
+
+
+def make_koji_session(tagQueryTimestamp=None):
     session = create_autospec(koji.ClientSession)
     session.getPackageID = Mock()
     session.getPackageID.side_effect = mock_get_package_id
@@ -127,5 +174,7 @@ def make_koji_session():
     session.listArchives.side_effect = mock_list_archives
     session.listRPMs = Mock()
     session.listRPMs.side_effect = mock_list_rpms
+    session.queryHistory = Mock()
+    session.queryHistory.side_effect = make_mock_query_history(tagQueryTimestamp)
 
     return session
