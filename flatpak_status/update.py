@@ -28,10 +28,11 @@ def nvrcmp(nvr_a, nvr_b):
 
 
 class Updater:
-    def __init__(self, db_session, koji_session, distgit):
+    def __init__(self, db_session, koji_session, distgit, releases):
         self.db_session = db_session
         self.koji_session = koji_session
         self.distgit = distgit
+        self.releases = releases
         self.package_investigation_cache = {}
 
 
