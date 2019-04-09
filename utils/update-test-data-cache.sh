@@ -21,6 +21,10 @@ export GIT_WORK_TREE=test-data
 if git rev-parse --verify --quiet refs/heads/test-data-cache > /dev/null ; then
     git symbolic-ref HEAD refs/heads/test-data-cache
     git reset
+elif git rev-parse --verify --quiet refs/remotes/origin/test-data-cache > /dev/null ; then
+    git branch --track test-data-cache origin/test-data-cache
+    git symbolic-ref HEAD refs/heads/test-data-cache
+    git reset
 else
     git checkout --orphan test-data-cache
 fi
