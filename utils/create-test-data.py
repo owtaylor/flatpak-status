@@ -245,7 +245,6 @@ class Downloader:
         params = {
             'page': 1,
             'rows_per_page': 100,
-            'active_releases': 1,
             'content_type': content_type,
             'packages': package,
             'releases': releases,
