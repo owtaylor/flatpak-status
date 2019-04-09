@@ -47,6 +47,7 @@ def test_flatpak_investigation(session):
     assert eog_pi.items[0].commit == '9b072f23540e45282678d9397faa8e28982fcbbd'
     assert eog_pi.items[0].build.nvr == 'eog-3.28.4-1.fc29'
     assert eog_pi.items[0].update.status == 'stable'
+    assert eog_pi.items[0].is_release_version is True
 
     gnome_desktop3_pi = next(pi
                              for pi in bi.package_investigations
@@ -59,9 +60,24 @@ def test_flatpak_investigation(session):
     assert gnome_desktop3_pi.items[0].commit == '802073589f1383c09e7b6f0e1c16972b1679d6c2'
     assert gnome_desktop3_pi.items[0].build.nvr == 'gnome-desktop3-3.30.2.1-1.fc29'
     assert gnome_desktop3_pi.items[0].update.status == 'stable'
+    assert gnome_desktop3_pi.items[0].is_release_version is False
     assert gnome_desktop3_pi.items[1].commit == '647d07b80231a012e94cef368750616ca7999b3b'
     assert gnome_desktop3_pi.items[1].build.nvr == 'gnome-desktop3-3.30.2-1.fc29'
     assert gnome_desktop3_pi.items[1].update.status == 'stable'
+    assert gnome_desktop3_pi.items[1].is_release_version is False
+
+    libpeas_pi = next(pi
+                      for pi in bi.package_investigations
+                      if pi.build.package.name == 'libpeas')
+    assert libpeas_pi.build.package.name == 'libpeas'
+    assert libpeas_pi.branch == 'f29'
+    assert libpeas_pi.commit == '8e162f875ac7e00dd90f3d791d40484f91012415'
+    assert libpeas_pi.module_build.nvr == 'eog-master-20181128204005.775baa8e'
+    assert len(libpeas_pi.items) == 1
+    assert libpeas_pi.items[0].commit == '8e162f875ac7e00dd90f3d791d40484f91012415'
+    assert libpeas_pi.items[0].build.nvr == 'libpeas-1.22.0-9.fc29'
+    assert libpeas_pi.items[0].update is None
+    assert libpeas_pi.items[0].is_release_version is True
 
     as_json = json.dumps(investigation, cls=UpdateJsonEncoder, indent=4)
     data = json.loads(as_json)

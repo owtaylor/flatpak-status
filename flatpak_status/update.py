@@ -3,7 +3,6 @@
 import functools
 import json
 import logging
-import re
 from urllib.parse import urlparse
 
 from rpm import labelCompare
@@ -11,8 +10,10 @@ from rpm import labelCompare
 from . import Modulemd
 from .bodhi_query import list_updates, refresh_all_updates, refresh_updates
 from .distgit import OrderingError
-from .koji_query import list_flatpak_builds, refresh_flatpak_builds
-from .models import Flatpak
+from .koji_query import (list_flatpak_builds, query_build, query_tag_builds,
+                         refresh_flatpak_builds, refresh_tag_builds)
+from .models import Flatpak, Package, PackageBuild
+from .release_info import ReleaseStatus
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +69,11 @@ def _update_to_json(update, include_details=False):
 
 
 class PackageBuildInvestigationItem:
-    def __init__(self, commit, build, update):
+    def __init__(self, commit, build, update, is_release_version):
         self.commit = commit
         self.build = build
         self.update = update
+        self.is_release_version = is_release_version
 
     def to_json(self):
         result = {
@@ -90,10 +92,11 @@ def _get_commit(build):
 
 
 class PackageBuildInvestigation:
-    def __init__(self, build, module_build, module_stream):
+    def __init__(self, build, module_build, module_stream, fallback_branch):
         self.build = build
         self.module_build = module_build
         self.module_stream = module_stream
+        self.fallback_branch = fallback_branch
         self.commit = _get_commit(build)
         self.branch = None
         self.items = []
@@ -117,65 +120,87 @@ class PackageBuildInvestigation:
             raise RuntimeError(
                 f"{self.build.nvr} was built from ref: {ref}, can't determine branch")
         else:
-            # Try to parse the disttag
-            m = re.match(r".*\.fc([0-9]+)$", r)
-            if m is not None:
-                return 'f' + m.group(1)
-            elif n in ['fedora-release', 'fedora-repos'] and re.match(r'^\d+$', r):
-                return 'f' + r
+            assert self.fallback_branch is not None
 
-            raise RuntimeError(f"Cannot parse disttag for non-modular {self.build.nvr}")
+            return self.fallback_branch
 
     def investigate(self, updater):
         package = self.build.package
         repo = updater.distgit.repo('rpms/' + package.name)
 
         self.branch = self.find_branch(repo)
-        if self.branch.startswith('f'):
-            release_branch = self.branch
+
+        matching_releases = [r for r in updater.releases if r.branch == self.branch]
+        if len(matching_releases) > 0:
+            release = matching_releases[0]
         else:
-            release_branch = None
+            raise RuntimeError(f"Branch {self.branch} not found - need stream branch support")
+            release = None
 
-        updates = list_updates(updater.db_session, 'rpm', package, release_branch=release_branch)
-        commit_to_update = {}
-        for update_build, build in updates:
-            if build.source is None:
-                logger.warning("Ignoring build %s without source", update_build.build_nvr)
-                continue
-            c = _get_commit(build)
-            c_branches = repo.get_branches(c)
-            if self.branch in c_branches:
-                commit_to_update[c] = (update_build.update, build)
+        if release.status == ReleaseStatus.EOL:
+            release = [r for r in updater.releases if r.status != ReleaseStatus.EOL]
 
-        if self.commit not in commit_to_update:
-            commit_to_update[self.commit] = (None, self.build)
+        commits = {}
+
+        if release.status != ReleaseStatus.RAWHIDE:
+            updates = list_updates(updater.db_session, 'rpm', package,
+                                   release_branch=release.branch)
+            for update_build, build in updates:
+                if build.source is None:
+                    logger.warning("Ignoring build %s without source", update_build.build_nvr)
+                    continue
+                c = _get_commit(build)
+                c_branches = repo.get_branches(c)
+                if self.branch in c_branches:
+                    commits[c] = (update_build.update, build)
+
+        def compare_tag_build_versions(a, b):
+            return nvrcmp(a.build_nvr, b.build_nvr)
+
+        tag_builds = query_tag_builds(updater.db_session, release.tag,
+                                      self.build.nvr.rsplit('-', 2)[0])
+        tag_builds.sort(key=functools.cmp_to_key(compare_tag_build_versions),
+                        reverse=True)
+        tag_build = tag_builds[0]
+
+        tag_build_build = query_build(updater.koji_session, updater.db_session,
+                                      tag_build.build_nvr, Package, PackageBuild)
+        tag_build_commit = _get_commit(tag_build_build)
+        if tag_build_commit not in commits:
+            commits[tag_build_commit] = (None, tag_build_build)
+
+        if self.commit not in commits:
+            commits[self.commit] = (None, self.build)
 
         def compare_versions(a, b):
-            return nvrcmp(commit_to_update[a][1].nvr, commit_to_update[b][1].nvr)
+            return nvrcmp(commits[a][1].nvr, commits[b][1].nvr)
 
-        nvr_order = sorted(commit_to_update.keys(),
+        nvr_order = sorted(commits.keys(),
                            key=functools.cmp_to_key(compare_versions),
                            reverse=True)
 
         try:
-            ordered_commits = repo.order(commit_to_update.keys())
+            ordered_commits = repo.order(commits.keys())
             ordered_commits.reverse()
 
             if nvr_order != ordered_commits:
                 logger.warning("%s: NVR order %s differs from commit order %s", self.build.nvr,
-                               [(c, commit_to_update[c][1].nvr) for c in nvr_order],
-                               [(c, commit_to_update[c][1].nvr) for c in ordered_commits])
+                               [(c, commits[c][1].nvr) for c in nvr_order],
+                               [(c, commits[c][1].nvr) for c in ordered_commits])
         except OrderingError:
             logger.info("%s: Failed to order based on git history, falling back to NVR comparison",
                         package.name)
             ordered_commits = nvr_order
 
         for c in ordered_commits:
-            c_update, c_build = commit_to_update[c]
+            c_update, c_build = commits[c]
             if c_update and (c_update.status == 'stable' or c_update.status == 'testing'):
-                self.items.append(PackageBuildInvestigationItem(c, c_build, c_update))
+                self.items.append(PackageBuildInvestigationItem(c, c_build, c_update,
+                                                                c == tag_build_commit))
+            elif c == tag_build_commit:
+                self.items.append(PackageBuildInvestigationItem(c, c_build, None, True))
             elif c == self.commit:
-                self.items.append(PackageBuildInvestigationItem(c, self.build, None))
+                self.items.append(PackageBuildInvestigationItem(c, self.build, None, False))
 
             if c == self.commit:
                 break
@@ -224,13 +249,25 @@ class FlatpakBuildInvestigation:
         for pb in self.build.list_package_builds():
             # Find the module that this package comes from, if any
 
-            module_build, module_stream = self.find_module(pb.package_build)
+            flatpak_name, flatpak_stream, _ = self.build.nvr.rsplit('-', 2)
 
-            key = (pb.package_build.nvr, module_build.nvr if module_build else None)
+            module_build, module_stream = self.find_module(pb.package_build)
+            if module_build is None:
+                if flatpak_name != 'flatpak-runtime' and flatpak_name != 'flatpak-sdk':
+                    raise RuntimeError(
+                        f"{self.build.nvr}: Can't find {pb.package_build.nvr} in a module")
+                fallback_branch = flatpak_stream
+            else:
+                fallback_branch = None
+
+            key = (pb.package_build.nvr,
+                   module_build.nvr if module_build else None,
+                   fallback_branch)
             package_investigation = updater.package_investigation_cache.get(key)
             if package_investigation is None:
                 package_investigation = PackageBuildInvestigation(pb.package_build,
-                                                                  module_build, module_stream)
+                                                                  module_build, module_stream,
+                                                                  fallback_branch)
                 package_investigation.investigate(updater)
                 updater.package_investigation_cache[key] = package_investigation
 
@@ -353,6 +390,11 @@ class Investigation:
         refresh_flatpak_builds(updater.koji_session, updater.db_session,
                                [i.ensure_flatpak(updater) for i in self.flatpak_investigations])
         updater.db_session.commit()
+
+        # And about the contents of relevant tags
+        for release in updater.releases:
+            if release.status != ReleaseStatus.EOL:
+                refresh_tag_builds(updater.koji_session, updater.db_session, release.tag)
 
         packages = set()
         for investigation in self.flatpak_investigations:
