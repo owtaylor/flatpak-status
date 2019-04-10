@@ -309,25 +309,28 @@ class FlatpakInvestigation:
         self.build_investigations.sort(key=functools.cmp_to_key(compare_versions), reverse=True)
 
     def _add_updates(self, updater):
-        most_recent_testing = None
-        most_recent_stable = None
+        most_recent_testing = {}
+        most_recent_stable = {}
+
         for update_build, build in list_updates(updater.db_session, 'flatpak', self.flatpak):
+            stream = build.nvr.rsplit('-', 2)[1]
+
             update = update_build.update
             if update.status == 'pending':
                 self._add_build_investigation(build, update)
             elif update.status == 'testing':
-                if most_recent_testing is None or nvrcmp(most_recent_testing[0].nvr,
-                                                         build.nvr) < 0:
-                    most_recent_testing = (build, update)
+                mrt_build, _ = most_recent_testing.get(stream, (None, None))
+                if mrt_build is None or nvrcmp(mrt_build.nvr, build.nvr) < 0:
+                    most_recent_testing[stream] = (build, update)
             elif update.status == 'stable':
-                if most_recent_stable is None or nvrcmp(most_recent_stable[0].nvr,
-                                                        build.nvr) < 0:
-                    most_recent_stable = (build, update)
+                mrs_build, _ = most_recent_stable.get(stream, (None, None))
+                if mrs_build is None or nvrcmp(mrs_build.nvr, build.nvr) < 0:
+                    most_recent_stable[stream] = (build, update)
 
-        if most_recent_stable is not None:
-            self._add_build_investigation(*most_recent_stable)
-        if most_recent_testing is not None:
-            self._add_build_investigation(*most_recent_testing)
+        for build, update in most_recent_stable.values():
+            self._add_build_investigation(build, update)
+        for build, update in most_recent_testing.values():
+            self._add_build_investigation(build, update)
 
     def _add_most_recent_build(self, updater):
         builds = list_flatpak_builds(updater.db_session, self.flatpak)
