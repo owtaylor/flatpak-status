@@ -14,6 +14,8 @@ while [ "$#" '>' 0 ] ; do
     shift
 done
 
+find . -name __pycache__ -exec rm -rf '{}' ';' -prune
+
 buildah bud $layers -t flatpak-status:latest .
 ./utils/update-test-data.sh --only-fetch-cache
 podman run \
