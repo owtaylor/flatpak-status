@@ -4,6 +4,11 @@ function nvrSplit(nvr) {
     return /(.*)-([^-]*)-([^-]*)/.exec(nvr).slice(1);
 }
 
+function isRuntime(nvr) {
+    const name = nvrSplit(nvr)[0];
+    return name == 'flatpak-runtime' || name == 'flatpak-sdk';
+}
+
 function makeBuildUrl(build) {
     return `https://koji.fedoraproject.org/koji/buildinfo?buildID=${build.id}`;
 }
@@ -81,7 +86,8 @@ Vue.component('flatpak-details', {
     },
     methods: {
         shouldExpand(build) {
-            return (build.build.nvr == this.flatpak.builds[0].build.nvr &&
+            return (!isRuntime(build.build.nvr) &&
+                    build.build.nvr == this.flatpak.builds[0].build.nvr &&
                     !isFlatpakBuildGood(build));
         },
     },
