@@ -130,7 +130,7 @@ class WorkThread(threading.Thread):
                         repo = self.global_objects.distgit.repo(path)
                         if repo.exists():
                             logger.info("Updating git mirror %s", path)
-                            repo.mirror()
+                            repo.mirror(mirror_always=True)
                             if not repo.verify_rev(rev):
                                 logger.warning("Fetch failed to get new rev %s", rev)
             except Exception:
