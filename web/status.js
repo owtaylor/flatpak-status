@@ -310,7 +310,7 @@ function pad(n) {
 
 Vue.filter('dateFormat', function(date) {
     const d = new Date(date);
-    return `${d.getFullYear()}-${MONTHS[d.getMonth()]}-${pad(d.getDate())}` +
+    return `${d.getFullYear()}-${MONTHS[d.getMonth()]}-${pad(d.getDate())} ` +
         `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 });
 
