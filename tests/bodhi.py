@@ -126,7 +126,8 @@ def mock_bodhi():
                            content_type='application/json',
                            match_querystring=False)
     responses.add_callback(method=responses.GET,
-                           url=re.compile('https://bodhi.fedoraproject.org/updates/([a-zA-Z0-9-]+)'),
+                           url=re.compile(
+                               'https://bodhi.fedoraproject.org/updates/([a-zA-Z0-9-]+)'),
                            callback=get_update_callback,
                            content_type='application/json',
                            match_querystring=False)

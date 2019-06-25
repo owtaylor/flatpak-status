@@ -1,7 +1,7 @@
 import responses
 
-from flatpak_status.bodhi_query import (list_updates, refresh_all_updates, refresh_updates,
-                                        refresh_update_status)
+from flatpak_status.bodhi_query import (list_updates, refresh_all_updates,
+                                        refresh_update_status, refresh_updates)
 from flatpak_status.models import (Flatpak, FlatpakBuild, FlatpakUpdate, FlatpakUpdateBuild,
                                    Package, PackageBuild, PackageUpdateBuild)
 from .bodhi import mock_bodhi
