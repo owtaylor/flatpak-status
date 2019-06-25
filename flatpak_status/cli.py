@@ -30,7 +30,8 @@ def cli(ctx, cache_dir, verbose):
     }
 
     if verbose:
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.WARNING)
+        logging.getLogger('flatpak_status').setLevel(logging.INFO)
     else:
         logging.basicConfig(level=logging.WARNING)
 
