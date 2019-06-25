@@ -164,13 +164,17 @@ class PackageBuildInvestigation:
                                       self.build.nvr.rsplit('-', 2)[0])
         tag_builds.sort(key=functools.cmp_to_key(compare_tag_build_versions),
                         reverse=True)
-        tag_build = tag_builds[0]
+        if len(tag_builds) == 0:
+            # Package introduced in updates, so just refer to the update builds
+            tag_build_commit = None
+        else:
+            tag_build = tag_builds[0]
 
-        tag_build_build = query_build(updater.koji_session, updater.db_session,
-                                      tag_build.build_nvr, Package, PackageBuild)
-        tag_build_commit = _get_commit(tag_build_build)
-        if tag_build_commit not in commits:
-            commits[tag_build_commit] = (None, tag_build_build)
+            tag_build_build = query_build(updater.koji_session, updater.db_session,
+                                          tag_build.build_nvr, Package, PackageBuild)
+            tag_build_commit = _get_commit(tag_build_build)
+            if tag_build_commit not in commits:
+                commits[tag_build_commit] = (None, tag_build_build)
 
         if self.commit not in commits:
             commits[self.commit] = (None, self.build)
