@@ -10,6 +10,7 @@ from .koji_query import query_build
 from .models import (Flatpak, FlatpakBuild, FlatpakUpdate, FlatpakUpdateBuild,
                      Package, PackageBuild, PackageUpdate, PackageUpdateBuild,
                      UpdateCacheItem)
+from .release_info import releases, ReleaseStatus
 
 logger = logging.getLogger(__name__)
 
@@ -133,8 +134,19 @@ def _query_updates(koji_session, db_session, requests_session,
     url = "https://bodhi.fedoraproject.org/updates/"
     params = {
         'rows_per_page': rows_per_page,
-        'active_releases': 1,
     }
+
+    bodhi_releases = []
+    for release in releases:
+        if release.status == ReleaseStatus.EOL or release.status == ReleaseStatus.RAWHIDE:
+            continue
+
+        bodhi_release = release.name
+        if content_type == 'flatpak':
+            bodhi_release += 'F'
+        bodhi_releases.append(bodhi_release)
+    params['releases'] = bodhi_releases
+
     # Heuristically, most updates are RPM updates, so specifying
     # content_type=rpm in the query doesn't reduce the size of the
     # result set much, but it turns out to make the database query
