@@ -141,7 +141,7 @@ class PackageBuildInvestigation:
             release = None
 
         if release.status == ReleaseStatus.EOL:
-            release = [r for r in updater.releases if r.status != ReleaseStatus.EOL]
+            release = [r for r in updater.releases if r.status != ReleaseStatus.EOL][0]
 
         commits = {}
 
