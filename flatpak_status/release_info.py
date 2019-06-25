@@ -20,8 +20,8 @@ class Release:
 releases = [
     Release(name='F26', branch='f26',    tag='f26', status=ReleaseStatus.EOL),
     Release(name='F27', branch='f27',    tag='f27', status=ReleaseStatus.EOL),
-    Release(name='F28', branch='f28',    tag='f28', status=ReleaseStatus.GA),
+    Release(name='F28', branch='f28',    tag='f28', status=ReleaseStatus.EOL),
     Release(name='F29', branch='f29',    tag='f29', status=ReleaseStatus.GA),
-    Release(name='F30', branch='f30',    tag='f30', status=ReleaseStatus.BRANCHED),
+    Release(name='F30', branch='f30',    tag='f30', status=ReleaseStatus.GA),
     Release(name='F31', branch='master', tag='f31', status=ReleaseStatus.RAWHIDE),
 ]
