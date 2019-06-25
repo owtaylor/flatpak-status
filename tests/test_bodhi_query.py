@@ -1,7 +1,8 @@
 import responses
 
-from flatpak_status.bodhi_query import list_updates, refresh_all_updates, refresh_updates
-from flatpak_status.models import (Flatpak, FlatpakBuild, FlatpakUpdateBuild,
+from flatpak_status.bodhi_query import (list_updates, refresh_all_updates, refresh_updates,
+                                        refresh_update_status)
+from flatpak_status.models import (Flatpak, FlatpakBuild, FlatpakUpdate, FlatpakUpdateBuild,
                                    Package, PackageBuild, PackageUpdateBuild)
 from .bodhi import mock_bodhi
 from .koji import make_koji_session
@@ -65,3 +66,24 @@ def test_bodhi_query_flatpak_updates(session):
     assert build.nvr == 'feedreader-master-2920190201225359.1'
 
     refresh_all_updates(koji_session, session, 'flatpak')
+
+
+@responses.activate
+def test_bodhi_refresh_update_status(session):
+    koji_session = make_koji_session()
+    mock_bodhi()
+
+    update_id = 'FEDORA-FLATPAK-2018-aecd5ddc46'
+
+    refresh_all_updates(koji_session, session, 'flatpak')
+    update = session.query(FlatpakUpdate) \
+                    .filter_by(bodhi_update_id=update_id) \
+                    .first()
+
+    update.status = 'pending'
+    refresh_update_status(koji_session, session, update_id)
+
+    assert update.status == 'stable'
+
+    # This should do nothing
+    refresh_update_status(koji_session, session, 'NO_SUCH_UPDATE')

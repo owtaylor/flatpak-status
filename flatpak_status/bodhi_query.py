@@ -261,6 +261,31 @@ def refresh_all_updates(koji_session, db_session,
         db_session.add(cache_item)
 
 
+def refresh_update_status(koji_session, db_session, update_id):
+    """Refreshes the status of a single update"""
+    url = f"https://bodhi.fedoraproject.org/updates/{update_id}"
+    requests_session = _get_retrying_session()
+
+    update = db_session.query(PackageUpdate) \
+                       .filter_by(bodhi_update_id=update_id) \
+                       .first()
+    if update is None:
+        update = db_session.query(FlatpakUpdate) \
+                           .filter_by(bodhi_update_id=update_id) \
+                           .first()
+
+    if update is None:
+        logger.info("Update %s not found, no need to update status", update_id)
+        return
+
+    logger.info("Querying bodhi for the new status of: %s", update_id)
+    response = requests_session.get(url,
+                                    headers={'Accept': 'application/json'})
+    response.raise_for_status()
+
+    update.status = response.json()['update']['status']
+
+
 def list_updates(db_session, content_type, entity=None, release_branch=None):
     """ Returns a list of (PackageUpdateBuild, PackageBuild)"""
     if content_type == 'rpm':

@@ -1,6 +1,7 @@
 import gzip
 import json
 import os
+import re
 from urllib.parse import parse_qs, urlparse
 
 from iso8601 import iso8601
@@ -95,9 +96,37 @@ def get_updates_callback(request):
     }))
 
 
+def get_update_callback(request):
+    path = urlparse(request.url).path
+    update_id = path.split('/')[-1]
+
+    updates = load_updates()
+    for update in updates:
+        if update['updateid'] == update_id:
+            return (200, {}, json.dumps({
+                'update': update,
+                'can_edit': False,
+            }))
+
+    return (404, {}, json.dumps({
+        "status": "error",
+        "errors": [
+            {
+                "location": "url",
+                "name": "id",
+                "description": "Invalid update id"
+            }
+        ]}))
+
+
 def mock_bodhi():
     responses.add_callback(method=responses.GET,
                            url='https://bodhi.fedoraproject.org/updates/',
                            callback=get_updates_callback,
+                           content_type='application/json',
+                           match_querystring=False)
+    responses.add_callback(method=responses.GET,
+                           url=re.compile('https://bodhi.fedoraproject.org/updates/([a-zA-Z0-9-]+)'),
+                           callback=get_update_callback,
                            content_type='application/json',
                            match_querystring=False)
