@@ -5,6 +5,7 @@ body {
     position: fixed;
     width: 200px;
     height: 100%;
+    overflow: auto;
 }
 .sidebar .item {
     display: block;
