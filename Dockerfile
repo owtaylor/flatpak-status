@@ -1,4 +1,4 @@
-FROM fedora:29
+FROM fedora:30
 
 ARG vcs_ref=
 LABEL org.label-schema.vcs-ref=$vcs_ref
@@ -9,7 +9,8 @@ RUN dnf -y update && \
         koji \
         'libmodulemd >= 2.0' \
         pipenv \
-        python3-fedmsg \
+        python3-bodhi-messages \
+        python3-fedora-messaging \
         python3-gobject-base \
         python3-koji \
         python3-pip \

@@ -6,12 +6,13 @@ import threading
 import time
 
 import click
-import fedmsg
 import koji
 from sqlalchemy.orm import sessionmaker
+from twisted.internet import reactor
 
 from .db import get_engine
 from .distgit import DistGit
+from .messaging import MessagePump
 from .release_info import releases
 from .update import Investigation, UpdateJsonEncoder, Updater
 
@@ -145,47 +146,72 @@ class WorkThread(threading.Thread):
                 next_update_time = now + self.update_interval
 
 
-def _suppress_fedmsg_routing_warnings():
-    # fedmsg's routing policy mechanism is meant to allow binding particular
-    # messages to the crypto certificates for particular servers in the
-    # infrastructure. Setting this up outside of Fedora infrastructure would
-    # be difficult, so we just filter out the nag messages that occur when
-    # no routing policy is set, but messages aren't actually blocked.
+class IdleStarter:
+    """Delay starting the workthread until no messages have been received for 1 second."""
 
-    class NoRoutingFilter(logging.Filter):
-        def filter(self, record):
-            return not (record.msg.startswith("No routing policy defined") and
-                        "but routing_nitpicky is False" in record.msg)
+    def __init__(self, to_start):
+        self.to_start = to_start
+        self.started = False
+        self.task = None
 
-    logging.getLogger('fedmsg.crypto.utils').addFilter(NoRoutingFilter())
+    def _do_start(self):
+        logger.info("Starting after 1 second of idle")
+        self.to_start.start()
+        self.started = True
+
+    def start_soon(self):
+        if not self.started:
+            if self.task:
+                self.task.cancel()
+            self.task = reactor.callLater(1, self._do_start)
 
 
 @click.option('-o', '--output', required=True,
               help='Output filename')
-@click.option('--mirror-existing/--no-mirror-existing', is_flag=True, default=True,
-              help="Initially update all existing distgit repos (default)")
+@click.option('--fedora-messaging-config', required=True,
+              help="Path to fedora-messaging config file")
 @click.option('--update-interval', type=int, default=1800,
               help="Update interval in seconds (default=1800)")
 @cli.command(name="daemon")
 @click.pass_context
-def daemon(ctx, output, mirror_existing, update_interval):
-    _suppress_fedmsg_routing_warnings()
-
+def daemon(ctx, output, fedora_messaging_config, update_interval):
     # With KeyboardInterrupt handling, the main thread won't exit until
     # the thread dies, but the thread won't die unless some subprocess
     # caught the SIGINT and caused a traceback... It's better to just exit.
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     work_thread = WorkThread(ctx.obj['cache_dir'], output, update_interval)
-    if mirror_existing:
-        work_thread.mirror_all()
-    work_thread.start()
+    starter = IdleStarter(work_thread)
 
-    fedmsg.init(mute=True)
-    match_topic = 'org.fedoraproject.prod.git.receive'
-    for name, endpoint, topic, raw_msg in fedmsg.tail_messages(topic=match_topic):
-        msg = raw_msg['msg']
-        rev = msg['commit']['rev']
-        path = msg['commit']['namespace'] + '/' + msg['commit']['repo']
-        logger.info("Saw commit on %s", path)
-        work_thread.mirror(path, rev)
+    routing_keys = [
+        "org.fedoraproject.prod.git.receive",
+    ]
+
+    message_pump = MessagePump(cache_dir=ctx.obj['cache_dir'],
+                               fedora_messaging_config=fedora_messaging_config,
+                               routing_keys=routing_keys)
+
+    def on_connected(new_queue):
+        logger.info("Connected, new_queue=%s", new_queue)
+        if new_queue:
+            work_thread.mirror_all()
+        starter.start_soon()
+
+    message_pump.on_connected = on_connected
+
+    def on_message(message):
+        logger.info("received message for topic %s", message.topic)
+        if message.topic == 'org.fedoraproject.prod.git.receive':
+            body = message.body
+            rev = body['commit']['rev']
+            path = body['commit']['namespace'] + '/' + body['commit']['repo']
+            logger.info("Saw commit on %s", path)
+            work_thread.mirror(path, rev)
+
+        starter.start_soon()
+
+    message_pump.on_message = on_message
+    message_pump.run()
+
+    # Only returns on abnormal exit
+    os._exit(1)
