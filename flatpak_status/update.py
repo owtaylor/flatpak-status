@@ -88,7 +88,10 @@ class PackageBuildInvestigationItem:
 
 def _get_commit(build):
     source = build.source
-    return urlparse(source).fragment
+    if build.source:
+        return urlparse(source).fragment
+    else:
+        return None
 
 
 class PackageBuildInvestigation:
@@ -179,18 +182,28 @@ class PackageBuildInvestigation:
                            key=functools.cmp_to_key(compare_versions),
                            reverse=True)
 
-        try:
-            ordered_commits = repo.order(commits.keys())
-            ordered_commits.reverse()
-
-            if nvr_order != ordered_commits:
-                logger.warning("%s: NVR order %s differs from commit order %s", self.build.nvr,
-                               [(c, commits[c][1].nvr) for c in nvr_order],
-                               [(c, commits[c][1].nvr) for c in ordered_commits])
-        except OrderingError:
-            logger.info("%s: Failed to order based on git history, falling back to NVR comparison",
+        git_commits = commits.keys()
+        if None in git_commits:
+            # Some build didn't have a source in Koji (if more than one build is missing a Koji
+            # source, then our hash table doesn't work right... hopefully even rarer.)
+            logger.info("%s: Don't have commit hashes for all builds, "
+                        "falling back to NVR comparison",
                         package.name)
             ordered_commits = nvr_order
+        else:
+            try:
+                ordered_commits = repo.order(commits.keys())
+                ordered_commits.reverse()
+
+                if nvr_order != ordered_commits:
+                    logger.warning("%s: NVR order %s differs from commit order %s", self.build.nvr,
+                                   [(c, commits[c][1].nvr) for c in nvr_order],
+                                   [(c, commits[c][1].nvr) for c in ordered_commits])
+            except OrderingError:
+                logger.info("%s: Failed to order based on git history, "
+                            "falling back to NVR comparison",
+                            package.name)
+                ordered_commits = nvr_order
 
         for c in ordered_commits:
             c_update, c_build = commits[c]
