@@ -215,7 +215,7 @@ class IdleStarter:
 
 @click.option('-o', '--output', required=True,
               help='Output filename')
-@click.option('--fedora-messaging-config', required=True,
+@click.option('--fedora-messaging-config',
               help="Path to fedora-messaging config file")
 @click.option('--update-interval', type=int, default=1800,
               help="Update interval in seconds (default=1800)")
@@ -226,6 +226,9 @@ def daemon(ctx, output, fedora_messaging_config, update_interval):
     # the thread dies, but the thread won't die unless some subprocess
     # caught the SIGINT and caused a traceback... It's better to just exit.
     signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+    if fedora_messaging_config is None:
+        fedora_messaging_config = os.path.join(os.path.dirname(__file__), 'fedora.toml')
 
     work_thread = WorkThread(ctx.obj['cache_dir'], output, update_interval)
     starter = IdleStarter(work_thread)
