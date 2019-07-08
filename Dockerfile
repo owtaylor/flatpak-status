@@ -5,6 +5,7 @@ LABEL org.label-schema.vcs-ref=$vcs_ref
 
 RUN dnf -y update && \
     dnf -y install \
+        fedora-messaging \
         git-core \
         koji \
         'libmodulemd >= 2.0' \
