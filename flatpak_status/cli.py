@@ -10,6 +10,7 @@ import koji
 from sqlalchemy.orm import sessionmaker
 from twisted.internet import reactor
 
+from .bodhi_query import refresh_update_status, reset_update_cache
 from .db import get_engine
 from .distgit import DistGit
 from .messaging import MessagePump
@@ -100,6 +101,8 @@ class WorkThread(threading.Thread):
 
         self.condition = threading.Condition()
         self.mirror_paths = {}
+        self.updated_updates = set()
+        self.should_reset_update_cache = False
 
     def mirror(self, path, rev):
         with self.condition:
@@ -111,17 +114,34 @@ class WorkThread(threading.Thread):
             self.mirror_paths['ALL'] = None
             self.condition.notify()
 
+    def reset_update_cache(self):
+        with self.condition:
+            self.should_reset_update_cache = True
+            self.condition.notify()
+
+    def update_update(self, bodhi_update_id):
+        with self.condition:
+            self.updated_updates.add(bodhi_update_id)
+            self.condition.notify()
+
     def run(self):
         now = time.time()
         next_update_time = now
         while True:
             with self.condition:
-                while not self.mirror_paths and now < next_update_time:
+                while not self.mirror_paths and \
+                      not self.should_reset_update_cache and \
+                      not self.updated_updates and \
+                      now < next_update_time:
                     self.condition.wait(next_update_time - now)
                     now = time.time()
 
                 mirror_paths = self.mirror_paths
                 self.mirror_paths = {}
+                should_reset_update_cache = self.should_reset_update_cache
+                self.should_reset_update_cache = False
+                updated_updates = self.updated_updates
+                self.updated_updates = set()
 
             try:
                 if 'ALL' in mirror_paths:
@@ -137,6 +157,33 @@ class WorkThread(threading.Thread):
                                 logger.warning("Fetch failed to get new rev %s", rev)
             except Exception:
                 logger.exception("Error git mirroring")
+
+            if should_reset_update_cache:
+                updater = self.global_objects.make_updater()
+
+                try:
+                    reset_update_cache(updater.db_session)
+                except Exception:
+                    logger.exception("Error restting Bodhi update cache")
+                    updater.db_session.rollback()
+                    raise
+                finally:
+                    updater.db_session.close()
+            elif updated_updates:
+                updater = self.global_objects.make_updater()
+
+                try:
+                    for bodhi_update_id in updated_updates:
+                        refresh_update_status(updater.koji_session,
+                                              updater.db_session,
+                                              bodhi_update_id)
+                    updater.db_session.commit()
+                except Exception:
+                    logger.exception("Error updating Bodhi updates")
+                    updater.db_session.rollback()
+                    raise
+                finally:
+                    updater.db_session.close()
 
             if now >= next_update_time:
                 try:
@@ -185,6 +232,8 @@ def daemon(ctx, output, fedora_messaging_config, update_interval):
 
     routing_keys = [
         "org.fedoraproject.prod.git.receive",
+        "org.fedoraproject.prod.bodhi.update.complete.#",
+        "org.fedoraproject.prod.bodhi.update.request.#",
     ]
 
     message_pump = MessagePump(cache_dir=ctx.obj['cache_dir'],
@@ -195,6 +244,13 @@ def daemon(ctx, output, fedora_messaging_config, update_interval):
         logger.info("Connected, new_queue=%s", new_queue)
         if new_queue:
             work_thread.mirror_all()
+            # We count on messages to catch certain changes to the status of updates
+            # (e.g., when an update is obsolete). So, if we can't reconnect, we start
+            # over from scratch. We could just refresh the status of all cached updates,
+            # but it would be common that when our queue has been deleted, we've *also*
+            # been disconnected for more than bodhi_query.ALL_UPDATES_MAX_INTERVAL -
+            # and then refreshing the update status would be doing twice the work.
+            work_thread.reset_update_cache()
         starter.start_soon()
 
     message_pump.on_connected = on_connected
@@ -207,6 +263,11 @@ def daemon(ctx, output, fedora_messaging_config, update_interval):
             path = body['commit']['namespace'] + '/' + body['commit']['repo']
             logger.info("Saw commit on %s", path)
             work_thread.mirror(path, rev)
+        elif (message.topic.startswith('org.fedoraproject.prod.bodhi.update.complete.') or
+              message.topic.startswith('org.fedoraproject.prod.bodhi.update.request.')):
+            body = message.body
+            logger.info("Update %s potentially changed status", body['update']['alias'])
+            work_thread.update_update(body['update']['alias'])
 
         starter.start_soon()
 

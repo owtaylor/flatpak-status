@@ -18,6 +18,9 @@ logger = logging.getLogger(__name__)
 # This is the maximum amount of time we'll ask Bodhi for all new updates
 # of a given type; if we haven't updated our image information for longer
 # than this, then we request package by package
+#
+# This is not typically hit - we'll refresh everything if our fedora-messaging
+# queue has been garbage collected.
 ALL_UPDATES_MAX_INTERVAL = timedelta(days=1)
 
 
@@ -169,7 +172,7 @@ def _query_updates(koji_session, db_session, requests_session,
             params['packages'] = query_packages
 
     if after is not None:
-        for key in ['submitted_since', 'modified_since', 'pushed_since']:
+        for key in ['submitted_since', 'modified_since']:
             params_copy = dict(params)
             params_copy[key] = (after - TIMESTAMP_FUZZ).isoformat()
 
@@ -284,6 +287,10 @@ def refresh_update_status(koji_session, db_session, update_id):
     response.raise_for_status()
 
     update.status = response.json()['update']['status']
+
+
+def reset_update_cache(db_session):
+    db_session.query(UpdateCacheItem).delete()
 
 
 def list_updates(db_session, content_type, entity=None, release_branch=None):
