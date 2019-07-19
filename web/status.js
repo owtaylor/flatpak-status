@@ -309,6 +309,10 @@ function pad(n) {
 }
 
 Vue.filter('dateFormat', function(date) {
+    if (!date) {
+        return '';
+    }
+
     const d = new Date(date);
     return `${d.getFullYear()}-${MONTHS[d.getMonth()]}-${pad(d.getDate())} ` +
         `${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -317,10 +321,12 @@ Vue.filter('dateFormat', function(date) {
 const app = new Vue({
     el: '#app',
     data: {
+        'date_updated': null,
         'flatpaks': [],
     },
 });
 
 fetch('status.json').then((res) => res.json()).then((res) => {
+    app.date_updated = res['date_updated'];
     app.flatpaks = res['flatpaks'];
 });

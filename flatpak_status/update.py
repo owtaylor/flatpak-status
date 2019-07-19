@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+from datetime import datetime
 import functools
 import json
 import logging
@@ -438,7 +439,8 @@ class Investigation:
 
     def to_json(self):
         return {
-            'flatpaks': self.flatpak_investigations
+            'date_updated': _time_to_json(datetime.utcnow()),
+            'flatpaks': self.flatpak_investigations,
         }
 
 
