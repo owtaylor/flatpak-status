@@ -115,7 +115,7 @@ class PackageBuildInvestigation:
                 raise RuntimeError(f"Cannot find {self.build.nvr} in the modulemd")
 
             ref = rpm_component.get_ref()
-            branches = repo.get_branches(ref)
+            branches = repo.get_branches(ref, try_mirroring=True)
             if ref in branches:
                 return ref
 
@@ -154,7 +154,7 @@ class PackageBuildInvestigation:
                     logger.warning("Ignoring build %s without source", update_build.build_nvr)
                     continue
                 c = _get_commit(build)
-                c_branches = repo.get_branches(c)
+                c_branches = repo.get_branches(c, try_mirroring=True)
                 if self.branch in c_branches:
                     commits[c] = (update_build.update, build)
 

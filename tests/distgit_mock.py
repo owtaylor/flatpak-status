@@ -19,7 +19,7 @@ class MockDistGitRepo:
     def mirror(self, mirror_always=False):
         self._load()
 
-    def get_branches(self, commit):
+    def get_branches(self, commit, try_mirroring=False):
         self._load()
 
         if commit in self._branches:

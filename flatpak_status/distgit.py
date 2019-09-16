@@ -57,10 +57,25 @@ class DistGitRepo(GitRepo):
                 logger.info("Refreshing existing mirror %s", self.pkg)
                 self.do('remote', 'update')
 
-    def get_branches(self, commit):
+    def _get_branches(self, commit, try_mirroring=False):
         return self.capture('branch',
                             '--contains', commit,
                             '--format=%(refname:lstrip=2)').split('\n')
+
+    def get_branches(self, commit, try_mirroring=False):
+        need_retry = False
+        try:
+            return self._get_branches(commit)
+        except GitError:
+            if try_mirroring:
+                logger.warning(f"Couldn't find {commit} in {self.repo_dir}, refreshing mirror")
+                need_retry = True
+            else:
+                raise
+
+        if need_retry:
+            self.mirror(mirror_always=True)
+            return self._get_branches(commit)
 
     def rev_parse(self, ref):
         return self.capture('rev-parse', ref)
