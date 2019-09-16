@@ -23,5 +23,6 @@ releases = [
     Release(name='F28', branch='f28',    tag='f28', status=ReleaseStatus.EOL),
     Release(name='F29', branch='f29',    tag='f29', status=ReleaseStatus.GA),
     Release(name='F30', branch='f30',    tag='f30', status=ReleaseStatus.GA),
-    Release(name='F31', branch='master', tag='f31', status=ReleaseStatus.RAWHIDE),
+    Release(name='F31', branch='f31',    tag='f31', status=ReleaseStatus.BRANCHED),
+    Release(name='F32', branch='master', tag='f32', status=ReleaseStatus.RAWHIDE),
 ]
