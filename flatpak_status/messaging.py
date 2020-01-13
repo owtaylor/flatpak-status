@@ -26,6 +26,8 @@ class MessagePump:
                 'auto_delete': False,
                 # not exclusive to one connection and deleted when that connection exits
                 'exclusive': False,
+                # broker-specific extra arguments
+                'arguments': {}
             }
         }
 
