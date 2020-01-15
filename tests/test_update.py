@@ -96,4 +96,9 @@ def test_flatpak_investigation(session):
     investigation2.investigate(updater)
 
     as_json2 = json.dumps(investigation2, cls=UpdateJsonEncoder, indent=4)
+
+    # time might have changed
+    del as_json['date_updated']
+    del as_json2['date_updated']
+
     assert as_json2 == as_json
