@@ -105,7 +105,7 @@ class PackageBuildInvestigation:
         self.branch = None
         self.items = []
 
-    def find_branch(self, repo):
+    def find_branch(self, updater, repo):
         n, v, r = self.build.nvr.rsplit('-', 2)
 
         if self.module_stream is not None:
@@ -119,10 +119,23 @@ class PackageBuildInvestigation:
             if ref in branches:
                 return ref
 
-            # ref was a commit ID. What we *should* return here is the oldest still-maintained
-            # release that contains the ref.
+            # ref was a commit ID
+
+            # first return the oldest still-maintained release that contains the ref.
+            maintained_branches = [r.branch for r in updater.releases
+                                   if r.branch in branches and r.status != ReleaseStatus.EOL]
+            if len(maintained_branches) > 0:
+                return maintained_branches[0]
+
+            # then return the newest unmaintained branch
+            all_branches = [r.branch for r in updater.releases
+                            if r.branch in branches]
+            if len(all_branches) > 0:
+                return all_branches[-1]
+
+            # Can't find a branch at all - really should be a bad status, not a failure
             raise RuntimeError(
-                f"{self.build.nvr} was built from ref: {ref}, can't determine branch")
+                f"{self.build.nvr} was built from ref: {ref}, no branch found")
         else:
             assert self.fallback_branch is not None
 
@@ -132,7 +145,7 @@ class PackageBuildInvestigation:
         package = self.build.package
         repo = updater.distgit.repo('rpms/' + package.name)
 
-        self.branch = self.find_branch(repo)
+        self.branch = self.find_branch(updater, repo)
 
         matching_releases = [r for r in updater.releases if r.branch == self.branch]
         if len(matching_releases) > 0:
