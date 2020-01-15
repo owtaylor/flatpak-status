@@ -97,8 +97,13 @@ def test_flatpak_investigation(session):
 
     as_json2 = json.dumps(investigation2, cls=UpdateJsonEncoder, indent=4)
 
-    # time might have changed
-    del as_json['date_updated']
-    del as_json2['date_updated']
+    # Make sure that the two investigations are the same, but account that
+    # the time might have changed
 
-    assert as_json2 == as_json
+    d1 = json.loads(as_json)
+    d2 = json.loads(as_json2)
+    # time might have changed
+    del d1['date_updated']
+    del d2['date_updated']
+
+    assert d1 == d2
