@@ -319,7 +319,7 @@ def list_updates(db_session, content_type, entity=None, release_branch=None):
     else:
         branches = [release.branch for release in release_info.releases
                     if release.status != ReleaseStatus.EOL and
-                       release.status != ReleaseStatus.RAWHIDE]
+                    release.status != ReleaseStatus.RAWHIDE]
 
     """ Returns a list of (PackageUpdateBuild, PackageBuild)"""
     if content_type == 'rpm':

@@ -100,6 +100,9 @@ def get_updates_callback(request):
     }))
 
 
+GET_UPDATE_PATTERN = re.compile('https://bodhi.fedoraproject.org/updates/([a-zA-Z0-9-]+)')
+
+
 def get_update_callback(request):
     path = urlparse(request.url).path
     update_id = path.split('/')[-1]
@@ -140,8 +143,7 @@ def mock_bodhi(f):
                                        content_type='application/json',
                                        match_querystring=False)
                 responses.add_callback(method=responses.GET,
-                                       url=re.compile(
-                                           'https://bodhi.fedoraproject.org/updates/([a-zA-Z0-9-]+)'),
+                                       url=GET_UPDATE_PATTERN,
                                        callback=get_update_callback,
                                        content_type='application/json',
                                        match_querystring=False)
