@@ -61,6 +61,12 @@ def _run_query_and_insert(koji_session, db_session, requests_session,
     else:
         raise RuntimeError(f"Unknown content_type {content_type}")
 
+    # Depending on our query parameters, we might get duplicates in the response, and might
+    # get less than rows_per_page rows in the response
+    # (https://github.com/fedora-infra/bodhi/issues/4130),
+    # so we need to track what updates we actually get to compare to 'total' in the
+    # response, which is de-duplicated
+    seen_updates = set()
     page = 1
     while True:
         params['page'] = page
@@ -73,6 +79,12 @@ def _run_query_and_insert(koji_session, db_session, requests_session,
         response_json = response.json()
 
         for update_json in response_json['updates']:
+            update_id = update_json['updateid']
+            if update_id in seen_updates:
+                continue
+
+            seen_updates.add(update_id)
+
             # Skip updates for EPEL
             release_name = update_json['release']['name']
             if release_name.startswith('EPEL-') or release_name.startswith('EL-'):
@@ -88,10 +100,10 @@ def _run_query_and_insert(koji_session, db_session, requests_session,
                 continue
 
             update = db_session.query(update_cls) \
-                               .filter_by(bodhi_update_id=update_json['updateid']) \
+                               .filter_by(bodhi_update_id=update_id) \
                                .first()
             if update is None:
-                update = update_cls(bodhi_update_id=update_json['updateid'],
+                update = update_cls(bodhi_update_id=update_id,
                                     release_name=update_json['release']['name'],
                                     release_branch=update_json['release']['branch'],
                                     date_submitted=parse_date_value(update_json['date_submitted']),
@@ -121,7 +133,9 @@ def _run_query_and_insert(koji_session, db_session, requests_session,
             for b in old_builds.values():
                 db_session.delete(b)
 
-        if response_json['page'] >= response_json['pages']:
+        # The first check avoids an extra round trip in the normal case, the second check
+        # avoids paging forever if something goes wrong
+        if len(seen_updates) >= response_json['total'] or len(response_json['updates']) == 0:
             break
         else:
             page += 1
