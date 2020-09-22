@@ -314,27 +314,32 @@ def reset_update_cache(db_session):
 
 
 def list_updates(db_session, content_type, entity=None, release_branch=None):
+    if release_branch is not None:
+        branches = [release_branch]
+    else:
+        branches = [release.branch for release in release_info.releases
+                    if release.status != ReleaseStatus.EOL and
+                       release.status != ReleaseStatus.RAWHIDE]
+
     """ Returns a list of (PackageUpdateBuild, PackageBuild)"""
     if content_type == 'rpm':
         q = db_session.query(PackageUpdateBuild) \
             .join(PackageBuild, PackageBuild.nvr == PackageUpdateBuild.build_nvr) \
+            .join(PackageUpdateBuild.update) \
+            .filter(PackageUpdate.release_branch.in_(branches)) \
             .add_entity(PackageBuild) \
             .options(joinedload(PackageUpdateBuild.update))
         if entity is not None:
             q = q.filter(PackageUpdateBuild.entity_name == entity.name)
-        if release_branch is not None:
-            q = q.join(PackageUpdateBuild.update) \
-                 .filter(PackageUpdate.release_branch == release_branch)
 
     elif content_type == 'flatpak':
         q = db_session.query(FlatpakUpdateBuild) \
             .join(FlatpakBuild, FlatpakBuild.nvr == FlatpakUpdateBuild.build_nvr) \
+            .join(FlatpakUpdateBuild.update) \
+            .filter(FlatpakUpdate.release_branch.in_(branches)) \
             .add_entity(FlatpakBuild) \
             .options(joinedload(FlatpakUpdateBuild.update))
         if entity is not None:
             q = q.filter(FlatpakUpdateBuild.entity_name == entity.name)
-        if release_branch is not None:
-            q = q.join(PackageUpdateBuild.update) \
-                 .filter(PackageUpdate.release_branch == release_branch)
 
     return q.all()
