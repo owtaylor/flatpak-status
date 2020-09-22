@@ -1,27 +1,17 @@
 import json
 
-import responses
-
-from flatpak_status.release_info import Release, ReleaseStatus
 from flatpak_status.update import Investigation, UpdateJsonEncoder, Updater
 from .bodhi import mock_bodhi
 from .distgit_mock import make_mock_distgit
 from .koji import make_koji_session
 
 
-releases = [
-    Release(name='F28', branch='f28', tag='f28', status=ReleaseStatus.GA),
-    Release(name='F29', branch='f29', tag='f29', status=ReleaseStatus.GA),
-]
-
-
-@responses.activate
+@mock_bodhi
 def test_flatpak_investigation(session):
     koji_session = make_koji_session()
     distgit = make_mock_distgit()
-    mock_bodhi()
 
-    updater = Updater(session, koji_session, distgit, releases)
+    updater = Updater(session, koji_session, distgit)
 
     investigation = Investigation()
     investigation.investigate(updater)

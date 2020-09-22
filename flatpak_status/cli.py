@@ -14,7 +14,6 @@ from .bodhi_query import refresh_update_status, reset_update_cache
 from .db import get_engine
 from .distgit import DistGit
 from .messaging import MessagePump
-from .release_info import releases
 from .update import Investigation, UpdateJsonEncoder, Updater
 
 logger = logging.getLogger(__name__)
@@ -54,8 +53,7 @@ class GlobalObjects:
     def make_updater(self):
         return Updater(self.session_constructor(),
                        self.koji_session,
-                       self.distgit,
-                       releases)
+                       self.distgit)
 
 
 def do_update(global_objects, output):

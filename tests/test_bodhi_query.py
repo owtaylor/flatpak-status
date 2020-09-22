@@ -1,5 +1,3 @@
-import responses
-
 from flatpak_status.bodhi_query import (list_updates, refresh_all_updates,
                                         refresh_update_status, refresh_updates)
 from flatpak_status.models import (Flatpak, FlatpakBuild, FlatpakUpdate, FlatpakUpdateBuild,
@@ -8,10 +6,9 @@ from .bodhi import mock_bodhi
 from .koji import make_koji_session
 
 
-@responses.activate
+@mock_bodhi
 def test_bodhi_query_package_updates(session):
     koji_session = make_koji_session()
-    mock_bodhi()
 
     bubblewrap_package = Package.get_for_name(session, 'bubblewrap', koji_session=koji_session)
 
@@ -38,10 +35,9 @@ def test_bodhi_query_package_updates(session):
     refresh_updates(koji_session, session, 'rpm', packages=['bubblewrap'])
 
 
-@responses.activate
+@mock_bodhi
 def test_bodhi_query_flatpak_updates(session):
     koji_session = make_koji_session()
-    mock_bodhi()
 
     feedreader_flatpak = Flatpak.get_for_name(session, 'feedreader', koji_session=koji_session)
 
@@ -68,10 +64,9 @@ def test_bodhi_query_flatpak_updates(session):
     refresh_all_updates(koji_session, session, 'flatpak')
 
 
-@responses.activate
+@mock_bodhi
 def test_bodhi_refresh_update_status(session):
     koji_session = make_koji_session()
-    mock_bodhi()
 
     update_id = 'FEDORA-FLATPAK-2018-aecd5ddc46'
 

@@ -14,6 +14,7 @@ from .distgit import OrderingError
 from .koji_query import (list_flatpak_builds, query_build, query_tag_builds,
                          refresh_flatpak_builds, refresh_tag_builds)
 from .models import Flatpak, Package, PackageBuild
+from . import release_info
 from .release_info import ReleaseStatus
 
 logger = logging.getLogger(__name__)
@@ -30,11 +31,10 @@ def nvrcmp(nvr_a, nvr_b):
 
 
 class Updater:
-    def __init__(self, db_session, koji_session, distgit, releases):
+    def __init__(self, db_session, koji_session, distgit):
         self.db_session = db_session
         self.koji_session = koji_session
         self.distgit = distgit
-        self.releases = releases
         self.package_investigation_cache = {}
 
 
@@ -122,13 +122,13 @@ class PackageBuildInvestigation:
             # ref was a commit ID
 
             # first return the oldest still-maintained release that contains the ref.
-            maintained_branches = [r.branch for r in updater.releases
+            maintained_branches = [r.branch for r in release_info.releases
                                    if r.branch in branches and r.status != ReleaseStatus.EOL]
             if len(maintained_branches) > 0:
                 return maintained_branches[0]
 
             # then return the newest unmaintained branch
-            all_branches = [r.branch for r in updater.releases
+            all_branches = [r.branch for r in release_info.releases
                             if r.branch in branches]
             if len(all_branches) > 0:
                 return all_branches[-1]
@@ -147,7 +147,7 @@ class PackageBuildInvestigation:
 
         self.branch = self.find_branch(updater, repo)
 
-        matching_releases = [r for r in updater.releases if r.branch == self.branch]
+        matching_releases = [r for r in release_info.releases if r.branch == self.branch]
         if len(matching_releases) > 0:
             release = matching_releases[0]
         else:
@@ -155,7 +155,7 @@ class PackageBuildInvestigation:
             release = None
 
         if release.status == ReleaseStatus.EOL:
-            release = [r for r in updater.releases if r.status != ReleaseStatus.EOL][0]
+            release = [r for r in release_info.releases if r.status != ReleaseStatus.EOL][0]
 
         commits = {}
 
@@ -426,7 +426,7 @@ class Investigation:
         updater.db_session.commit()
 
         # And about the contents of relevant tags
-        for release in updater.releases:
+        for release in release_info.releases:
             if release.status != ReleaseStatus.EOL:
                 refresh_tag_builds(updater.koji_session, updater.db_session, release.tag)
 

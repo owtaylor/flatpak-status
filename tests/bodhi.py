@@ -1,13 +1,17 @@
+from functools import wraps
 import gzip
 import json
 import os
 import re
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
 from iso8601 import iso8601
 import responses
 
 from flatpak_status.bodhi_query import parse_date_value
+from flatpak_status.release_info import Release, ReleaseStatus
+
 
 _updates = []
 
@@ -119,15 +123,29 @@ def get_update_callback(request):
         ]}))
 
 
-def mock_bodhi():
-    responses.add_callback(method=responses.GET,
-                           url='https://bodhi.fedoraproject.org/updates/',
-                           callback=get_updates_callback,
-                           content_type='application/json',
-                           match_querystring=False)
-    responses.add_callback(method=responses.GET,
-                           url=re.compile(
-                               'https://bodhi.fedoraproject.org/updates/([a-zA-Z0-9-]+)'),
-                           callback=get_update_callback,
-                           content_type='application/json',
-                           match_querystring=False)
+MOCK_RELEASES = [
+    Release(name='F28', branch='f28', tag='f28', status=ReleaseStatus.GA),
+    Release(name='F29', branch='f29', tag='f29', status=ReleaseStatus.GA),
+]
+
+
+def mock_bodhi(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        with patch("flatpak_status.release_info.releases", MOCK_RELEASES):
+            with responses._default_mock:
+                responses.add_callback(method=responses.GET,
+                                       url='https://bodhi.fedoraproject.org/updates/',
+                                       callback=get_updates_callback,
+                                       content_type='application/json',
+                                       match_querystring=False)
+                responses.add_callback(method=responses.GET,
+                                       url=re.compile(
+                                           'https://bodhi.fedoraproject.org/updates/([a-zA-Z0-9-]+)'),
+                                       callback=get_update_callback,
+                                       content_type='application/json',
+                                       match_querystring=False)
+
+                return f(*args, **kwargs)
+
+    return wrapper

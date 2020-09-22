@@ -10,7 +10,8 @@ from .koji_query import query_build
 from .models import (Flatpak, FlatpakBuild, FlatpakUpdate, FlatpakUpdateBuild,
                      Package, PackageBuild, PackageUpdate, PackageUpdateBuild,
                      UpdateCacheItem)
-from .release_info import releases, ReleaseStatus
+from . import release_info
+from .release_info import ReleaseStatus
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +155,7 @@ def _query_updates(koji_session, db_session, requests_session,
     }
 
     bodhi_releases = []
-    for release in releases:
+    for release in release_info.releases:
         if release.status == ReleaseStatus.EOL or release.status == ReleaseStatus.RAWHIDE:
             continue
 
