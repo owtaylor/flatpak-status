@@ -175,7 +175,7 @@ def _query_updates(koji_session, db_session, requests_session,
     # params['content_type'] = content_type
     #
     # For Fedora, because each content type has a separate release, we effectively
-    # filter by release anyways.
+    # filter by content type anyways.
 
     if query_packages is not None:
         if len(query_packages) > 5:
