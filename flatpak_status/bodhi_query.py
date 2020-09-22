@@ -6,11 +6,11 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from sqlalchemy.orm import joinedload
 
+from . import release_info
 from .koji_query import query_build
 from .models import (Flatpak, FlatpakBuild, FlatpakUpdate, FlatpakUpdateBuild,
                      Package, PackageBuild, PackageUpdate, PackageUpdateBuild,
                      UpdateCacheItem)
-from . import release_info
 from .release_info import ReleaseStatus
 
 logger = logging.getLogger(__name__)

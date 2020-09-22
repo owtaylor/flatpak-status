@@ -9,12 +9,12 @@ from urllib.parse import urlparse
 from rpm import labelCompare
 
 from . import Modulemd
+from . import release_info
 from .bodhi_query import list_updates, refresh_all_updates, refresh_updates
 from .distgit import OrderingError
 from .koji_query import (list_flatpak_builds, query_build, query_tag_builds,
                          refresh_flatpak_builds, refresh_tag_builds)
 from .models import Flatpak, Package, PackageBuild
-from . import release_info
 from .release_info import ReleaseStatus
 
 logger = logging.getLogger(__name__)
