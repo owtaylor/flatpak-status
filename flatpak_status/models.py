@@ -174,7 +174,8 @@ class PackageUpdateBuild(Base):
     __tablename__ = 'package_update_builds'
 
     update_id = Column(Integer, ForeignKey('package_updates.id'), nullable=False)
-    update = relationship("PackageUpdate", back_populates="builds")
+    # See bodhi_query.py:list_updates() for why lazy="joined"
+    update = relationship("PackageUpdate", back_populates="builds", lazy="joined")
 
     build_nvr = Column(String, nullable=False)
     entity_name = Column(String, nullable=False, index=True)
@@ -191,7 +192,8 @@ class FlatpakUpdateBuild(Base):
     __tablename__ = 'flatpak_update_builds'
 
     update_id = Column(Integer, ForeignKey('flatpak_updates.id'), nullable=False)
-    update = relationship("FlatpakUpdate", back_populates="builds")
+    # See bodhi_query.py:list_updates() for why lazy="joined"
+    update = relationship("FlatpakUpdate", back_populates="builds", lazy="joined")
 
     build_nvr = Column(String, nullable=False)
     entity_name = Column(String, nullable=False, index=True)

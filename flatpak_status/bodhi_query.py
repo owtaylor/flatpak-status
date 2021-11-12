@@ -327,8 +327,10 @@ def list_updates(db_session, content_type, entity=None, release_branch=None):
             .join(PackageBuild, PackageBuild.nvr == PackageUpdateBuild.build_nvr) \
             .join(PackageUpdateBuild.update) \
             .filter(PackageUpdate.release_branch.in_(branches)) \
-            .add_entity(PackageBuild) \
-            .options(joinedload(PackageUpdateBuild.update))
+            .add_entity(PackageBuild)
+        # We used to use .options(joinedload(PackageUpdateBuild.update)), but
+        # with sqlalchemy-1.4.x, we need to put lazy='joined' on the relationship
+        # instead, see https://github.com/sqlalchemy/sqlalchemy/issues/7318
         if entity is not None:
             q = q.filter(PackageUpdateBuild.entity_name == entity.name)
 
@@ -337,8 +339,7 @@ def list_updates(db_session, content_type, entity=None, release_branch=None):
             .join(FlatpakBuild, FlatpakBuild.nvr == FlatpakUpdateBuild.build_nvr) \
             .join(FlatpakUpdateBuild.update) \
             .filter(FlatpakUpdate.release_branch.in_(branches)) \
-            .add_entity(FlatpakBuild) \
-            .options(joinedload(FlatpakUpdateBuild.update))
+            .add_entity(FlatpakBuild)
         if entity is not None:
             q = q.filter(FlatpakUpdateBuild.entity_name == entity.name)
 
