@@ -4,7 +4,6 @@ import logging
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
-from sqlalchemy.orm import joinedload
 
 from . import release_info
 from .koji_query import query_build
