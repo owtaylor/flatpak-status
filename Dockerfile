@@ -26,12 +26,12 @@ ADD package.json /opt/flatpak-status/
 RUN npm install
 
 ADD Pipfile /opt/flatpak-status/
-RUN PIPENV_VENV_IN_PROJECT=1 pipenv --three --site-packages && \
-    pipenv install --dev
+RUN PIPENV_VENV_IN_PROJECT=1 CI=1 pipenv --three --site-packages && \
+    CI=1 pipenv install --dev
 
 ADD flatpak_status /opt/flatpak-status/flatpak_status
 ADD setup.py /opt/flatpak-status/
-RUN pipenv run pip3 install -e .
+RUN CI=1 pipenv run pip3 install -e .
 
 ADD tests /opt/flatpak-status/tests
 ADD test_data /opt/flatpak-status/test_data
