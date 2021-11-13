@@ -23,7 +23,7 @@ jobs:
 
       - name: Build
         run: |
-            ./utils/update-test-data.sh --from-cache
+            ./utils/update-test-data.sh --only-fetch-cache
             podman build -t flatpak-status:latest .
             podman run -it --rm flatpak-status:latest pipenv run ./utils/test.sh
 
