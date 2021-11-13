@@ -34,10 +34,12 @@ ADD setup.py /opt/flatpak-status/
 RUN CI=1 pipenv run pip3 install -e .
 
 ADD tests /opt/flatpak-status/tests
-ADD test_data /opt/flatpak-status/test_data
 ADD utils /opt/flatpak-status/utils
 ADD web /opt/flatpak-status/web
 ADD .flake8 .eslintrc.yml README.md /opt/flatpak-status/
+
+ADD .test-data /opt/flatpak-status/.test-data
+RUN CI=1 pipenv run utils/update-test-data.sh --no-fetch-cache
 
 ENV PIPENV_SHELL=/bin/bash
 
