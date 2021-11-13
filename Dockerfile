@@ -1,4 +1,4 @@
-FROM fedora:30
+FROM fedora:35
 
 ARG vcs_ref=
 LABEL org.label-schema.vcs-ref=$vcs_ref
@@ -34,8 +34,11 @@ ADD setup.py /opt/flatpak-status/
 RUN pipenv run pip3 install -e .
 
 ADD tests /opt/flatpak-status/tests
+ADD test_data /opt/flatpak-status/test_data
 ADD utils /opt/flatpak-status/utils
 ADD web /opt/flatpak-status/web
 ADD .flake8 .eslintrc.yml README.md /opt/flatpak-status/
+
+ENV PIPENV_SHELL=/bin/bash
 
 CMD ["pipenv", "shell"]
