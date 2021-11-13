@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  # Run at 02:23 UTC on Thursdays
+  schedule:
+    - cron: '23 2 * * 4'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Build
+        run: |
+            ./utils/update-test-data.sh --from-cache
+            podman build -t flatpak-status:latest .
+            podman run -it --rm flatpak-status:latest pipenv run ./utils/test.sh
+
+            podman inspect flatpak-status:latest | jq '.[0].Config.Labels'
+
+      - name: Push
+        if: ${{ github.ref == 'refs/heads/main' }}
+        env:
+          QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+          QUAY_USER: ${{ secrets.QUAY_USER }}
+        run: |
+          sh -c 'echo $QUAY_TOKEN' | sh -c 'podman login --password-stdin -u $QUAY_USER quay.io'
+          podman push flatpak-status:latest \
+              quay.io/owtaylor/flatpak-status:latest
