@@ -64,7 +64,7 @@ body {
     font-size: 110%;
 }
 .build > .header::before {
-    font: Noto Color Emoji, Sans;
+    font-family: Noto Color Emoji, Sans;
     width: 1.5em;
     display: inline-block;
     content: "\2705";
