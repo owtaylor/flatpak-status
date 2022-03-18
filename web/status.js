@@ -27,7 +27,7 @@ function makeUpdateLinkClass(update) {
 
 function isPackageGood(pkg) {
     return (pkg.commit == pkg.history[0].commit ||
-            (pkg.history.length > 1 && (pkg.history[0].update_status == 'testing' &&
+            (pkg.history.length > 1 && (pkg.history[0].update.status == 'testing' &&
                                         pkg.commit == pkg.history[1].commit)));
 }
 
