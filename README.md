@@ -73,6 +73,28 @@ npm install
 
 You can then enter an interactive session with `pipenv shell`
 
+Trying it locally
+----------------
+
+Run flatpak-status to create `status.json`:
+
+``` sh
+flatpak-status -v --cache-dir=cache update -o generated/status.json
+```
+
+(Pass `--no-mirror-existing`, if running it repeatedly, to skip updating all the git repositories.)
+
+The run a web server:
+
+``` sh
+./utils/build-frontend.sh
+./utils/run-frontend.sh
+```
+
+And go to `localhost:8080` in your web browser. The `web/` and `generated/` directories are mounted
+in the web server, so you can simply reload when rebuilding `status.json` or editing javascript/CSS
+files.
+
 Coding style
 ------------
 * All Python code is expected to be clean according to flake8
