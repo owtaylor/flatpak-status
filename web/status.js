@@ -41,6 +41,22 @@ function isFlatpakBuildGood(flatpak) {
     return true;
 }
 
+function hasFlatpakBuildSecurityUpdates(flatpak) {
+    for (const pkg of flatpak.packages) {
+        for (const item of pkg.history) {
+            if (item.commit == pkg.commit) {
+                break;
+            }
+
+            if (item.update.type == 'security' && item.update.status != 'testing') {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 function flatpakBuildStatusString(flatpak) {
     const badPackages = [];
     for (const pkg of flatpak.packages) {
@@ -66,6 +82,16 @@ function isFlatpakGood(flatpak) {
     return true;
 }
 
+function hasFlatpakSecurityUpdates(flatpak) {
+    for (const build of flatpak.builds) {
+        if (hasFlatpakBuildSecurityUpdates(build)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 Vue.component('flatpak-item', {
     props: {
         'flatpak': Object,
@@ -74,9 +100,14 @@ Vue.component('flatpak-item', {
         good() {
             return isFlatpakGood(this.flatpak);
         },
+
+        secure() {
+            return this.good || !hasFlatpakSecurityUpdates(this.flatpak);
+        },
     },
     template: `
-        <a :class="{item: true, bad: !good}" :href="'#' + flatpak.name" >{{ flatpak.name }}</a>
+        <a :class="{item: true, bad: !good, insecure: !secure}"
+           :href="'#' + flatpak.name" >{{ flatpak.name }}</a>
     `,
 });
 
@@ -126,6 +157,9 @@ Vue.component('flatpak-build', {
         good() {
             return isFlatpakBuildGood(this.build);
         },
+        secure() {
+            return this.good || !hasFlatpakBuildSecurityUpdates(this.build);
+        },
         statusString() {
             return flatpakBuildStatusString(this.build);
         },
@@ -137,7 +171,7 @@ Vue.component('flatpak-build', {
     },
     template: `
         <div class="build">
-          <div :class="{header: true, expanded: expanded, bad: !good}"
+          <div :class="{header: true, expanded: expanded, bad: !good, insecure: !secure}"
                @click="toggleExpanded">{{ build.build.nvr }}
                <links :build="build.build"
                       :update="build.update"

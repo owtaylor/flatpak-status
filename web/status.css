@@ -20,6 +20,16 @@ body {
 }
 .sidebar .item.bad, sidebar .item.bad:visited {
     color: #882222;
+    font-weight: bold;
+}
+.sidebar .item::before {
+    font-family: Noto Color Emoji, Sans;
+    width: 1.5em;
+    display: inline-block;
+    content: " ";
+}
+.sidebar .item.insecure::before {
+    content: "\1f6e1";
 }
 
 .main {
@@ -71,6 +81,9 @@ body {
 }
 .build > .header.bad::before {
     content: "\1F6D1";
+}
+.build .header.insecure::before {
+    content: "\1F6E1";
 }
 .build > .header.expanded {
     font-size: 110%;
