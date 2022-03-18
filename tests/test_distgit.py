@@ -14,6 +14,7 @@ def create_source(source_dir):
     repo = GitRepo(eog_dir)
 
     repo.do('init')
+    repo.do('branch', '-m', 'main')
     repo.do('config', 'user.email', 'user@example.com')
     repo.do('config', 'user.name', 'Test User')
 
@@ -50,7 +51,7 @@ def test_distgit():
         assert head == commits['Commit 2']
 
         branches = repo.get_branches(commits['Commit 1'])
-        assert set(branches) == set(['f29', 'master'])
+        assert set(branches) == set(['f29', 'main'])
 
         unordered = [commits[x] for x in ('Commit 2', 'Commit 1', 'Commit 2')]
         ordered = repo.order(unordered)
