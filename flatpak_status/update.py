@@ -2,20 +2,26 @@
 
 from datetime import datetime
 import functools
+from functools import cached_property
 import json
 import logging
 from urllib.parse import urlparse
 
+from flatpak_indexer import release_info
+from flatpak_indexer.bodhi_query import list_updates, refresh_all_updates, refresh_updates
+from flatpak_indexer.build_cache import BuildCache
+from flatpak_indexer.koji_query import (
+    list_flatpak_builds, query_tag_builds,
+    refresh_flatpak_builds, refresh_tag_builds
+)
+from flatpak_indexer.koji_utils import get_koji_session
+from flatpak_indexer.models import FlatpakBuildModel
+from flatpak_indexer.redis_utils import get_redis_client
+from flatpak_indexer.release_info import ReleaseStatus
 from rpm import labelCompare
 
 from . import Modulemd
-from . import release_info
-from .bodhi_query import list_updates, refresh_all_updates, refresh_updates
 from .distgit import OrderingError
-from .koji_query import (list_flatpak_builds, query_build, query_tag_builds,
-                         refresh_flatpak_builds, refresh_tag_builds)
-from .models import Flatpak, Package, PackageBuild
-from .release_info import ReleaseStatus
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +37,19 @@ def nvrcmp(nvr_a, nvr_b):
 
 
 class Updater:
-    def __init__(self, db_session, koji_session, distgit):
-        self.db_session = db_session
-        self.koji_session = koji_session
+    def __init__(self, config, distgit):
+        self.config = config
         self.distgit = distgit
         self.package_investigation_cache = {}
+        self.build_cache = BuildCache(self.config)
+
+    @cached_property
+    def redis_client(self):
+        return get_redis_client(self.config)
+
+    @cached_property
+    def koji_session(self):
+        return get_koji_session(self.config)
 
 
 def _time_to_json(dt):
@@ -44,7 +58,7 @@ def _time_to_json(dt):
 
 def _build_to_json(build, include_details=False):
     result = {
-        'id': build.koji_build_id,
+        'id': build.build_id,
         'nvr': build.nvr,
     }
 
@@ -57,7 +71,7 @@ def _build_to_json(build, include_details=False):
 
 def _update_to_json(update, include_details=False):
     result = {
-        'id': update.bodhi_update_id,
+        'id': update.update_id,
         'status': update.status,
         'type': update.type,
     }
@@ -106,11 +120,9 @@ class PackageBuildInvestigation:
         self.items = []
 
     def find_branch(self, updater, repo):
-        n, v, r = self.build.nvr.rsplit('-', 2)
-
         if self.module_stream is not None:
             # extract a ref from the modulemd
-            rpm_component = self.module_stream.get_rpm_component(n)
+            rpm_component = self.module_stream.get_rpm_component(self.build.name)
             if rpm_component is None:
                 raise RuntimeError(f"Cannot find {self.build.nvr} in the modulemd")
 
@@ -142,8 +154,8 @@ class PackageBuildInvestigation:
             return self.fallback_branch
 
     def investigate(self, updater):
-        package = self.build.package
-        repo = updater.distgit.repo('rpms/' + package.name)
+        package_name = self.build.name
+        repo = updater.distgit.repo('rpms/' + package_name)
 
         self.branch = self.find_branch(updater, repo)
 
@@ -151,7 +163,10 @@ class PackageBuildInvestigation:
         if len(matching_releases) > 0:
             release = matching_releases[0]
         else:
-            raise RuntimeError(f"Branch {self.branch} not found - need stream branch support")
+            raise RuntimeError(
+                f"{self.build.nvr}: "
+                "Cannot find matching release for branch {self.branch} - need stream branch support"
+            )
             release = None
 
         if release.status == ReleaseStatus.EOL:
@@ -160,32 +175,34 @@ class PackageBuildInvestigation:
         commits = {}
 
         if release.status != ReleaseStatus.RAWHIDE:
-            updates = list_updates(updater.db_session, 'rpm', package,
+            updates = list_updates(updater.redis_client, 'rpm', package_name,
                                    release_branch=release.branch)
-            for update_build, build in updates:
-                if build.source is None:
-                    logger.warning("Ignoring build %s without source", update_build.build_nvr)
-                    continue
-                c = _get_commit(build)
-                c_branches = repo.get_branches(c, try_mirroring=True)
-                if self.branch in c_branches:
-                    commits[c] = (update_build.update, build)
+            for update in updates:
+                for build_nvr in update.builds:
+                    # Update might contain many other packages
+                    build_name = build_nvr.rsplit('-', 2)[0]
+                    if build_name != package_name:
+                        continue
 
-        def compare_tag_build_versions(a, b):
-            return nvrcmp(a.build_nvr, b.build_nvr)
+                    build = updater.build_cache.get_package_build(build_nvr)
+                    if build.source is None:
+                        logger.warning("Ignoring build %s without source", build_nvr)
+                        continue
+                    c = _get_commit(build)
+                    c_branches = repo.get_branches(c, try_mirroring=True)
+                    if self.branch in c_branches:
+                        commits[c] = (update, build)
 
-        tag_builds = query_tag_builds(updater.db_session, release.tag,
-                                      self.build.nvr.rsplit('-', 2)[0])
-        tag_builds.sort(key=functools.cmp_to_key(compare_tag_build_versions),
-                        reverse=True)
+        tag_builds = query_tag_builds(updater.redis_client, release.tag,
+                                      self.build.name)
+        tag_builds.sort(key=functools.cmp_to_key(nvrcmp), reverse=True)
         if len(tag_builds) == 0:
             # Package introduced in updates, so just refer to the update builds
             tag_build_commit = None
         else:
-            tag_build = tag_builds[0]
+            tag_build_nvr = tag_builds[0]
 
-            tag_build_build = query_build(updater.koji_session, updater.db_session,
-                                          tag_build.build_nvr, Package, PackageBuild)
+            tag_build_build = updater.build_cache.get_package_build(tag_build_nvr)
             tag_build_commit = _get_commit(tag_build_build)
             if tag_build_commit not in commits:
                 commits[tag_build_commit] = (None, tag_build_build)
@@ -206,7 +223,7 @@ class PackageBuildInvestigation:
             # source, then our hash table doesn't work right... hopefully even rarer.)
             logger.info("%s: Don't have commit hashes for all builds, "
                         "falling back to NVR comparison",
-                        package.name)
+                        package_name)
             ordered_commits = nvr_order
         else:
             try:
@@ -220,7 +237,7 @@ class PackageBuildInvestigation:
             except OrderingError:
                 logger.info("%s: Failed to order based on git history, "
                             "falling back to NVR comparison",
-                            package.name)
+                            package_name)
                 ordered_commits = nvr_order
 
         for c in ordered_commits:
@@ -255,13 +272,14 @@ class FlatpakBuildInvestigation:
         self.package_investigations = []
         self.module_to_module_stream = {}
 
-    def find_module(self, package_build):
+    def find_module(self, updater, package_build_nvr):
         module_build = None
         module_stream = None
-        for mb in self.build.module_builds:
-            for mb_pb in mb.module_build.package_builds:
-                if mb_pb.package_build == package_build:
-                    module_build = mb.module_build
+        for mb_nvr in self.build.module_builds:
+            mb = updater.build_cache.get_module_build(mb_nvr)
+            for binary_package in mb.package_builds:
+                if binary_package.source_nvr == package_build_nvr:
+                    module_build = mb
 
         if module_build is not None:
             module_stream = self.module_to_module_stream.get(module_build.nvr)
@@ -277,26 +295,28 @@ class FlatpakBuildInvestigation:
         return module_build, module_stream
 
     def investigate(self, updater):
-        for pb in self.build.list_package_builds():
+        for binary_package in self.build.package_builds:
             # Find the module that this package comes from, if any
+
+            package_build = updater.build_cache.get_package_build(binary_package.source_nvr)
 
             flatpak_name, flatpak_stream, _ = self.build.nvr.rsplit('-', 2)
 
-            module_build, module_stream = self.find_module(pb.package_build)
+            module_build, module_stream = self.find_module(updater, package_build.nvr)
             if module_build is None:
                 if flatpak_name != 'flatpak-runtime' and flatpak_name != 'flatpak-sdk':
                     raise RuntimeError(
-                        f"{self.build.nvr}: Can't find {pb.package_build.nvr} in a module")
+                        f"{self.build.nvr}: Can't find {package_build.nvr} in a module")
                 fallback_branch = flatpak_stream
             else:
                 fallback_branch = None
 
-            key = (pb.package_build.nvr,
+            key = (package_build.nvr,
                    module_build.nvr if module_build else None,
                    fallback_branch)
             package_investigation = updater.package_investigation_cache.get(key)
             if package_investigation is None:
-                package_investigation = PackageBuildInvestigation(pb.package_build,
+                package_investigation = PackageBuildInvestigation(package_build,
                                                                   module_build, module_stream,
                                                                   fallback_branch)
                 package_investigation.investigate(updater)
@@ -304,7 +324,7 @@ class FlatpakBuildInvestigation:
 
             self.package_investigations.append(package_investigation)
 
-        self.package_investigations.sort(key=lambda x: x.build.nvr.rsplit('-', 2)[0])
+        self.package_investigations.sort(key=lambda x: x.build.name)
 
     def to_json(self):
         result = {
@@ -321,13 +341,12 @@ class FlatpakBuildInvestigation:
 class FlatpakInvestigation:
     def __init__(self, name, module_only=False):
         self.name = name
-        self.flatpak = None
         self.module_only = module_only
         self.build_investigations = []
 
     def _add_build_investigation(self, build, update=None):
         for bi in self.build_investigations:
-            if bi.build == build:
+            if bi.build.nvr == build.nvr:
                 if bi.update is None:
                     bi.update = update
                 return
@@ -343,20 +362,28 @@ class FlatpakInvestigation:
         most_recent_testing = {}
         most_recent_stable = {}
 
-        for update_build, build in list_updates(updater.db_session, 'flatpak', self.flatpak):
-            stream = build.nvr.rsplit('-', 2)[1]
+        for update in list_updates(updater.redis_client, 'flatpak', self.name):
+            for build_nvr in update.builds:
+                # Update might contain many other Flatpaks
+                build_name = build_nvr.rsplit('-', 2)[0]
+                if build_name != self.name:
+                    continue
 
-            update = update_build.update
-            if update.status == 'pending':
-                self._add_build_investigation(build, update)
-            elif update.status == 'testing':
-                mrt_build, _ = most_recent_testing.get(stream, (None, None))
-                if mrt_build is None or nvrcmp(mrt_build.nvr, build.nvr) < 0:
-                    most_recent_testing[stream] = (build, update)
-            elif update.status == 'stable':
-                mrs_build, _ = most_recent_stable.get(stream, (None, None))
-                if mrs_build is None or nvrcmp(mrs_build.nvr, build.nvr) < 0:
-                    most_recent_stable[stream] = (build, update)
+                build = updater.build_cache.get_image_build(build_nvr)
+                assert isinstance(build, FlatpakBuildModel)
+                stream = build_nvr.rsplit('-', 2)[1]
+
+                if update.status == 'pending':
+                    self._add_build_investigation(build, update)
+                elif update.status == 'testing':
+                    mrt_build, _ = most_recent_testing.get(stream, (None, None))
+                    logger.warning("%s %s", mrt_build and mrt_build.nvr, build.nvr)
+                    if mrt_build is None or nvrcmp(mrt_build.nvr, build.nvr) < 0:
+                        most_recent_testing[stream] = (build, update)
+                elif update.status == 'stable':
+                    mrs_build, _ = most_recent_stable.get(stream, (None, None))
+                    if mrs_build is None or nvrcmp(mrs_build.nvr, build.nvr) < 0:
+                        most_recent_stable[stream] = (build, update)
 
         for build, update in most_recent_stable.values():
             self._add_build_investigation(build, update)
@@ -364,7 +391,7 @@ class FlatpakInvestigation:
             self._add_build_investigation(build, update)
 
     def _add_most_recent_build(self, updater):
-        builds = list_flatpak_builds(updater.db_session, self.flatpak)
+        builds = list_flatpak_builds(updater.koji_session, updater.redis_client, self.name)
         if len(builds) == 0:
             return
 
@@ -374,24 +401,16 @@ class FlatpakInvestigation:
         most_recent = max(builds, key=functools.cmp_to_key(compare_versions))
         self._add_build_investigation(most_recent)
 
-    def ensure_flatpak(self, updater):
-        if self.flatpak is None:
-            self.flatpak = Flatpak.get_for_name(updater.db_session,
-                                                self.name,
-                                                koji_session=updater.koji_session)
-        return self.flatpak
-
     def investigate(self, updater):
-        self.ensure_flatpak(updater)
         self._add_updates(updater)
         self._add_most_recent_build(updater)
 
-    @property
-    def packages(self):
+    def list_packages(self, updater):
         result = set()
         for bi in self.build_investigations:
-            for pb in bi.build.package_builds:
-                result.add(pb.package_build.package)
+            for binary_package in bi.build.package_builds:
+                package_build = updater.build_cache.get_package_build(binary_package.source_nvr)
+                result.add(package_build.name)
 
         return result
 
@@ -408,43 +427,40 @@ class Investigation:
 
     def investigate(self, updater):
         # Make sure we have the most recent information about Flatpak updates
-        refresh_all_updates(updater.koji_session, updater.db_session,
+        refresh_all_updates(updater.koji_session, updater.redis_client,
                             'flatpak')
-        updater.db_session.commit()
 
         flatpak_names = set()
-        for update_build, build in list_updates(updater.db_session, 'flatpak'):
-            flatpak_names.add(build.nvr.rsplit('-', 2)[0])
+        for update in list_updates(updater.redis_client, 'flatpak'):
+            for build in update.builds:
+                flatpak_names.add(build.rsplit('-', 2)[0])
 
         for name in sorted(flatpak_names):
             investigation = FlatpakInvestigation(name)
             self.flatpak_investigations.append(investigation)
 
         # Make sure we have the most recent information about Flatpak builds
-        refresh_flatpak_builds(updater.koji_session, updater.db_session,
-                               [i.ensure_flatpak(updater) for i in self.flatpak_investigations])
-        updater.db_session.commit()
+        refresh_flatpak_builds(updater.koji_session, updater.redis_client,
+                               [i.name for i in self.flatpak_investigations])
 
         # And about the contents of relevant tags
         for release in release_info.releases:
             if release.status != ReleaseStatus.EOL:
-                refresh_tag_builds(updater.koji_session, updater.db_session, release.tag)
+                refresh_tag_builds(updater.koji_session, updater.redis_client, release.tag)
 
         packages = set()
         for investigation in self.flatpak_investigations:
             investigation.investigate(updater)
-            packages.update(investigation.packages)
-        updater.db_session.commit()
+            packages.update(investigation.list_packages(updater))
 
         # Now make sure we have the most recent git for relevant packages
-        for p in sorted(packages, key=lambda p: p.name):
-            updater.distgit.repo('rpms/' + p.name).mirror()
+        for p in sorted(packages):
+            updater.distgit.repo('rpms/' + p).mirror()
 
         # Make sure we have the most recent information about relevant packages
-        refresh_updates(updater.koji_session, updater.db_session,
+        refresh_updates(updater.koji_session, updater.redis_client,
                         'rpm',
-                        [p.name for p in packages])
-        updater.db_session.commit()
+                        list(packages))
 
         for investigation in self.flatpak_investigations:
             for bi in investigation.build_investigations:

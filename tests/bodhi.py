@@ -6,11 +6,10 @@ import re
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
+from flatpak_indexer.bodhi_query import parse_date_value
+from flatpak_indexer.release_info import Release, ReleaseStatus
 from iso8601 import iso8601
 import responses
-
-from flatpak_status.bodhi_query import parse_date_value
-from flatpak_status.release_info import Release, ReleaseStatus
 
 
 _updates = []
@@ -135,7 +134,7 @@ MOCK_RELEASES = [
 def mock_bodhi(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        with patch("flatpak_status.release_info.releases", MOCK_RELEASES):
+        with patch("flatpak_indexer.release_info.releases", MOCK_RELEASES):
             with responses._default_mock:
                 responses.add_callback(method=responses.GET,
                                        url='https://bodhi.fedoraproject.org/updates/',

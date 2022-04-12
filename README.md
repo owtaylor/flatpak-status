@@ -14,13 +14,10 @@ Running updates
 ===============
 
 ``` sh
-flatpak-status --cachedir=<cachedir> update -o <some_directory>/status.json
+$ flatpak-status -c <configfile> update
 ```
 
 Runs a one-off update. Options are:
-
-**-o/--output**
-Output filename
 
 **--mirror-existing/--no-mirror-existing**
 Enable (the default) or disable updating src.fedoraproject.org repositories that have already been mirrored.
@@ -28,7 +25,7 @@ This can be used to speed things up during testing.
 
 
 ``` sh
-$ flatpak-status --cachedir=<cachedir> daemon -o <some_directory>/status.json
+$ flatpak-status -c <configfile> daemon
 ```
 
 This runs a continuous update process. The fedmsg message bus is monitored for commits to
@@ -37,15 +34,6 @@ to loop through and check for updates to the repositories one-by-one.
 
 **-o/--output**
 Output filename
-
-**--mirror-existing/--no-mirror-existing**
-Enable (the default) or disable updating src.fedoraproject.org repositories that have
-already been mirrored at startup. This can be used to speed things up during testing.
-Even if --no-mirror-existing is passed, existing repositories will be mirrored if
-commits are seen.
-
-**--update-interval**
-How often to mirror existing repositories, in seconds. The default is 1800 (30 minutes)
 
 
 Configuring the web
@@ -76,15 +64,22 @@ You can then enter an interactive session with `pipenv shell`
 Trying it locally
 ----------------
 
-Run flatpak-status to create `status.json`:
+Run a redis service for caching in one terminal tab:
 
 ``` sh
-flatpak-status -v --cache-dir=cache update -o generated/status.json
+./utils/build-redis.sh
+./utils/run-redis.sh
+```
+
+Run flatpak-status in another terminal tab to create `status.json`:
+
+``` sh
+flatpak-status -v -c config-example.yaml update
 ```
 
 (Pass `--no-mirror-existing`, if running it repeatedly, to skip updating all the git repositories.)
 
-The run a web server:
+Then run a web server in a third terminal tab:
 
 ``` sh
 ./utils/build-frontend.sh

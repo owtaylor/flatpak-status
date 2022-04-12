@@ -1,35 +1,48 @@
 import json
 
+from flatpak_status.cli import Config
 from flatpak_status.update import Investigation, UpdateJsonEncoder, Updater
 from .bodhi import mock_bodhi
 from .distgit_mock import make_mock_distgit
-from .koji import make_koji_session
+from .koji import mock_koji
+from .redis import mock_redis
+
+
+CONFIG = """
+cache_dir: cache
+output: generated/status.json
+koji_config: fedora
+redis_url: redis://localhost:16379
+redis_password: abc123
+"""
 
 
 @mock_bodhi
-def test_flatpak_investigation(session):
-    koji_session = make_koji_session()
+@mock_koji
+@mock_redis
+def test_flatpak_investigation():
+    config = Config.from_str(CONFIG)
     distgit = make_mock_distgit()
 
-    updater = Updater(session, koji_session, distgit)
+    updater = Updater(config, distgit)
 
     investigation = Investigation()
     investigation.investigate(updater)
 
     eog_investigation = [i for i in investigation.flatpak_investigations if i.name == 'eog'][0]
 
-    packages = eog_investigation.packages
-    assert {p.name for p in packages} == set(['eog', 'exempi', 'libpeas', 'gnome-desktop3'])
+    packages = eog_investigation.list_packages(updater)
+    assert set(packages) == {'eog', 'exempi', 'libpeas', 'gnome-desktop3'}
 
     assert len(eog_investigation.build_investigations) == 1
     bi = eog_investigation.build_investigations[0]
     assert bi.build.nvr == 'eog-master-20181128204005.1'
 
-    assert ({pi.build.package.name for pi in bi.package_investigations} ==
+    assert ({pi.build.name for pi in bi.package_investigations} ==
             set(['eog', 'exempi', 'libpeas', 'gnome-desktop3']))
 
-    eog_pi = next(pi for pi in bi.package_investigations if pi.build.package.name == 'eog')
-    assert eog_pi.build.package.name == 'eog'
+    eog_pi = next(pi for pi in bi.package_investigations if pi.build.name == 'eog')
+    assert eog_pi.build.name == 'eog'
     assert eog_pi.branch == 'f29'
     assert eog_pi.commit == '9b072f23540e45282678d9397faa8e28982fcbbd'
     assert eog_pi.module_build.nvr == 'eog-master-20181128204005.775baa8e'
@@ -41,8 +54,8 @@ def test_flatpak_investigation(session):
 
     gnome_desktop3_pi = next(pi
                              for pi in bi.package_investigations
-                             if pi.build.package.name == 'gnome-desktop3')
-    assert gnome_desktop3_pi.build.package.name == 'gnome-desktop3'
+                             if pi.build.name == 'gnome-desktop3')
+    assert gnome_desktop3_pi.build.name == 'gnome-desktop3'
     assert gnome_desktop3_pi.branch == 'f29'
     assert gnome_desktop3_pi.commit == '647d07b80231a012e94cef368750616ca7999b3b'
     assert gnome_desktop3_pi.module_build.nvr == 'eog-master-20181128204005.775baa8e'
@@ -58,8 +71,8 @@ def test_flatpak_investigation(session):
 
     libpeas_pi = next(pi
                       for pi in bi.package_investigations
-                      if pi.build.package.name == 'libpeas')
-    assert libpeas_pi.build.package.name == 'libpeas'
+                      if pi.build.name == 'libpeas')
+    assert libpeas_pi.build.name == 'libpeas'
     assert libpeas_pi.branch == 'f29'
     assert libpeas_pi.commit == '8e162f875ac7e00dd90f3d791d40484f91012415'
     assert libpeas_pi.module_build.nvr == 'eog-master-20181128204005.775baa8e'

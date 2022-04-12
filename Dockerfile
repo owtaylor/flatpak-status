@@ -29,6 +29,10 @@ ADD Pipfile /opt/flatpak-status/
 RUN PIPENV_VENV_IN_PROJECT=1 CI=1 pipenv --three --site-packages && \
     CI=1 pipenv install --dev
 
+ADD flatpak-indexer/setup.py /opt/flatpak-status/flatpak-indexer/setup.py
+ADD flatpak-indexer/flatpak_indexer /opt/flatpak-status/flatpak-indexer/flatpak_indexer
+RUN CI=1 pipenv run pip3 install -e flatpak-indexer
+
 ADD flatpak_status /opt/flatpak-status/flatpak_status
 ADD setup.py /opt/flatpak-status/
 RUN CI=1 pipenv run pip3 install -e .
