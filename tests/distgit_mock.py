@@ -1,6 +1,8 @@
+from functools import wraps
 import gzip
 import json
 import os
+from unittest.mock import patch
 
 
 class MockDistGitRepo:
@@ -15,6 +17,9 @@ class MockDistGitRepo:
                                     self.pkg + '.json.gz')
             with gzip.open(jsonfile, 'rt') as f:
                 self._branches = json.load(f)
+
+    def exists(self):
+        return self.pkg != 'NOTEXIST'
 
     def mirror(self, mirror_always=False):
         self._load()
@@ -63,9 +68,23 @@ class MockDistGit:
     def __init__(self):
         pass
 
+    def mirror_all(self):
+        pass
+
     def repo(self, pkg):
         return MockDistGitRepo(pkg)
 
 
 def make_mock_distgit():
     return MockDistGit()
+
+
+def mock_distgit(f):
+    mock_dist_git = make_mock_distgit()
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        with patch('flatpak_status.distgit.DistGit', return_value=mock_dist_git):
+            return f(*args, **kwargs)
+
+    return wrapper

@@ -6,12 +6,12 @@ import signal
 import time
 
 import click
+from flatpak_indexer import fedora_monitor
 from flatpak_indexer.bodhi_query import refresh_update_status, reset_update_cache
-from flatpak_indexer.fedora_monitor import FedoraMonitor
 from flatpak_indexer.koji_utils import KojiConfig
 from flatpak_indexer.redis_utils import RedisConfig
 
-from .distgit import DistGit
+from . import distgit
 from .update import Investigation, UpdateJsonEncoder, Updater
 
 logger = logging.getLogger(__name__)
@@ -47,9 +47,9 @@ def cli(ctx, config_file, verbose):
 class GlobalObjects:
     def __init__(self, config, mirror_existing=True):
         self.config = config
-        self.distgit = DistGit(base_url='https://src.fedoraproject.org',
-                               mirror_dir=os.path.join(config.cache_dir, 'distgit'),
-                               mirror_existing=mirror_existing)
+        self.distgit = distgit.DistGit(base_url='https://src.fedoraproject.org',
+                                       mirror_dir=os.path.join(config.cache_dir, 'distgit'),
+                                       mirror_existing=mirror_existing)
 
     def make_updater(self):
         return Updater(self.config, self.distgit)
@@ -90,7 +90,9 @@ def daemon(ctx):
     config = ctx.obj['config']
     global_objects = GlobalObjects(config, mirror_existing=False)
 
-    monitor = FedoraMonitor(config, watch_bodhi_updates=True, watch_distgit_changes=True)
+    monitor = fedora_monitor.FedoraMonitor(
+        config, watch_bodhi_updates=True, watch_distgit_changes=True
+    )
     monitor.start()
 
     now = time.time()
