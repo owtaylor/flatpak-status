@@ -1,8 +1,9 @@
 from copy import deepcopy
+from functools import wraps
 import gzip
 import json
 import os
-from unittest.mock import create_autospec, Mock
+from unittest.mock import create_autospec, DEFAULT, Mock, patch
 
 import koji
 
@@ -178,3 +179,19 @@ def make_koji_session(tagQueryTimestamp=None):
     session.queryHistory.side_effect = make_mock_query_history(tagQueryTimestamp)
 
     return session
+
+
+def mock_koji(f):
+    session = make_koji_session()
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        with patch.multiple('koji',
+                            read_config=DEFAULT,
+                            grab_session_options=DEFAULT,
+                            ClientSession=DEFAULT) as mocks:
+            mocks['ClientSession'].return_value = session
+
+            return f(*args, **kwargs)
+
+    return wrapper

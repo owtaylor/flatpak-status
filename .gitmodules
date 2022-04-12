@@ -1,0 +1,3 @@
+[submodule "flatpak-indexer"]
+	path = flatpak-indexer
+	url = https://github.com/owtaylor/flatpak-indexer.git

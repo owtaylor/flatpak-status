@@ -1,0 +1,11 @@
+# directory for caching data
+cache_dir: cache
+# output filename
+output: generated/status.json
+# name of a Koji config section
+koji_config: fedora
+# URL to a local Redis index for caching
+redis_url: redis://localhost:16379
+redis_password: abc123
+# Update interval
+update_interval: 30m

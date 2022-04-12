@@ -10,9 +10,8 @@ iso8601 = "*"
 flake8 = "*"
 flake8-import-order = "*"
 pytest-cov = "*"
+fakeredis = "*"
 
 [packages]
-sqlalchemy = "*"
 requests = "*"
 fedmsg = "*"
-alembic = "*"
