@@ -20,9 +20,9 @@ done
 
 if $update_test_data ; then
     if $fetch_cache ; then
-        ./utils/update-test-data.sh --from-cache
+        ./tools/update-test-data.sh --from-cache
     else
-        ./utils/update-test-data.sh --no-fetch-cache
+        ./tools/update-test-data.sh --no-fetch-cache
     fi
 fi
 
@@ -32,7 +32,7 @@ set +e -x
 
 pytest --cov=flatpak_status --cov-report=term-missing tests
 [ $? == 0 ] || failed="$failed pytest"
-flake8 flatpak_status utils tests
+flake8 flatpak_status tools tests
 [ $? == 0 ] || failed="$failed flake8"
 node_modules/.bin/eslint web/status.js
 [ $? == 0 ] || failed="$failed eslint"

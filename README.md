@@ -67,8 +67,8 @@ Trying it locally
 Run a redis service for caching in one terminal tab:
 
 ``` sh
-./utils/build-redis.sh
-./utils/run-redis.sh
+./tools/build-redis.sh
+./tools/run-redis.sh
 ```
 
 Run flatpak-status in another terminal tab to create `status.json`:
@@ -82,8 +82,8 @@ flatpak-status -v -c config-example.yaml update
 Then run a web server in a third terminal tab:
 
 ``` sh
-./utils/build-frontend.sh
-./utils/run-frontend.sh
+./tools/build-frontend.sh
+./tools/run-frontend.sh
 ```
 
 And go to `localhost:8080` in your web browser. The `web/` and `generated/` directories are mounted
@@ -98,18 +98,18 @@ Coding style
 (As configured by `.eslintrc`).
 * All tests should pass.
 
-`utils/test.sh` runs the unit tests, flake8, and eslint.
-`utils-test-podman.sh` runs test.sh in container.
+`tools/test.sh` runs the unit tests, flake8, and eslint.
+`tools-test-podman.sh` runs test.sh in container.
 
 Test Data
 ---------
 The tests use a subset of Fedora package data.
 
-`utils/create-test-data.py` can either download the test data from scratch,
+`tools/create-test-data.py` can either download the test data from scratch,
 or more usually, update it based on an existing download. This script
 is not used directly, instead you run:
 
-`utils/update-test-data.sh` - this updates the test data based either
+`tools/update-test-data.sh` - this updates the test data based either
 on the test-data/ directory, if it exists, or from the test-data-cache
 git branch.
 

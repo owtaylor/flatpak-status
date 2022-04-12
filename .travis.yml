@@ -1,8 +1,0 @@
-language: python
-
-services:
-    - docker
-
-install: true
-
-script: ./utils/test-docker.sh
