@@ -66,9 +66,9 @@ trap cleanup EXIT
 
 if $update ; then
     if $from_cache ; then
-        utils/create-test-data.py -b .test-data -o test-data.new
+        tools/create-test-data.py -b .test-data -o test-data.new
     else
-        utils/create-test-data.py -b test-data -o test-data.new
+        tools/create-test-data.py -b test-data -o test-data.new
     fi
 
     if rm -rf test-data ; then
