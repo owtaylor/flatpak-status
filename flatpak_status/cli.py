@@ -8,16 +8,17 @@ import time
 import click
 from flatpak_indexer import fedora_monitor
 from flatpak_indexer.bodhi_query import refresh_update_status, reset_update_cache
+from flatpak_indexer.http_utils import HttpConfig
 from flatpak_indexer.koji_utils import KojiConfig
 from flatpak_indexer.redis_utils import RedisConfig
 
 from . import distgit
-from .update import Investigation, UpdateJsonEncoder, Updater
+from .update import Investigation, Session, UpdateJsonEncoder
 
 logger = logging.getLogger(__name__)
 
 
-class Config(KojiConfig, RedisConfig):
+class Config(HttpConfig, KojiConfig, RedisConfig):
     cache_dir: str
     output: str
     update_interval: timedelta = timedelta(seconds=1800)
@@ -51,15 +52,15 @@ class GlobalObjects:
                                        mirror_dir=os.path.join(config.cache_dir, 'distgit'),
                                        mirror_existing=mirror_existing)
 
-    def make_updater(self):
-        return Updater(self.config, self.distgit)
+    def make_session(self):
+        return Session(self.config, self.distgit)
 
 
 def do_update(global_objects):
-    updater = global_objects.make_updater()
+    session = global_objects.make_session()
 
     investigation = Investigation()
-    investigation.investigate(updater)
+    investigation.investigate(session)
 
     with open(global_objects.config.output, 'w') as f:
         json.dump(investigation, f, cls=UpdateJsonEncoder, indent=4)
@@ -107,14 +108,12 @@ def daemon(ctx):
 
         bodhi_changed, serial = monitor.get_bodhi_changed()
 
-        updater = global_objects.make_updater()
+        session = global_objects.make_session()
         if bodhi_changed is None:
-            reset_update_cache(updater.redis_client)
+            reset_update_cache(session)
         else:
             for bodhi_update_id in bodhi_changed:
-                refresh_update_status(updater.koji_session,
-                                      updater.redis_client,
-                                      bodhi_update_id)
+                refresh_update_status(session, bodhi_update_id)
 
         monitor.clear_bodhi_changed(serial)
 
