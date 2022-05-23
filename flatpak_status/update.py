@@ -147,7 +147,7 @@ class PackageBuildInvestigation:
         else:
             raise RuntimeError(
                 f"{self.build.nvr}: "
-                "Cannot find matching release for branch {self.branch} - need stream branch support"
+                f"Cannot find matching release for branch {self.branch} - need stream branch support"
             )
             release = None
 
