@@ -1,11 +1,12 @@
 import json
 
+from flatpak_indexer.test.bodhi import mock_bodhi
+from flatpak_indexer.test.koji import mock_koji
+from flatpak_indexer.test.redis import mock_redis
+
 from flatpak_status.cli import Config
 from flatpak_status.update import Investigation, Session, UpdateJsonEncoder
-from .bodhi import mock_bodhi
 from .distgit_mock import make_mock_distgit
-from .koji import mock_koji
-from .redis import mock_redis
 
 
 CONFIG = """

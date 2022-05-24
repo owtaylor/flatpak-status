@@ -4,16 +4,16 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 from flatpak_indexer import fedora_monitor
+from flatpak_indexer.test.bodhi import mock_bodhi
+from flatpak_indexer.test.koji import mock_koji
+from flatpak_indexer.test.redis import mock_redis
 import pytest
 import yaml
 
 
 from flatpak_status.cli import cli, Config
-from .bodhi import mock_bodhi
 from .distgit_mock import mock_distgit
 from .fedora_monitor_mock import mock_fedora_monitor
-from .koji import mock_koji
-from .redis import mock_redis
 
 
 CONFIG = yaml.safe_load("""\
