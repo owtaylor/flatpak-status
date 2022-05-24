@@ -6,7 +6,6 @@ import logging
 from typing import List
 from urllib.parse import urlparse
 
-from flatpak_indexer import release_info
 from flatpak_indexer.bodhi_query import list_updates, refresh_all_updates, refresh_updates
 from flatpak_indexer.koji_query import (
     list_flatpak_builds, query_tag_builds,
@@ -116,13 +115,13 @@ class PackageBuildInvestigation:
             # ref was a commit ID
 
             # first return the oldest still-maintained release that contains the ref.
-            maintained_branches = [r.branch for r in release_info.releases
+            maintained_branches = [r.branch for r in session.fedora_releases
                                    if r.branch in branches and r.status != ReleaseStatus.EOL]
             if len(maintained_branches) > 0:
                 return maintained_branches[0]
 
             # then return the newest unmaintained branch
-            all_branches = [r.branch for r in release_info.releases
+            all_branches = [r.branch for r in session.fedora_releases
                             if r.branch in branches]
             if len(all_branches) > 0:
                 return all_branches[-1]
@@ -141,7 +140,7 @@ class PackageBuildInvestigation:
 
         self.branch = self.find_branch(session, repo)
 
-        matching_releases = [r for r in release_info.releases if r.branch == self.branch]
+        matching_releases = [r for r in session.fedora_releases if r.branch == self.branch]
         if len(matching_releases) > 0:
             release = matching_releases[0]
         else:
@@ -153,7 +152,7 @@ class PackageBuildInvestigation:
             release = None
 
         if release.status == ReleaseStatus.EOL:
-            release = [r for r in release_info.releases if r.status != ReleaseStatus.EOL][0]
+            release = [r for r in session.fedora_releases if r.status != ReleaseStatus.EOL][0]
 
         commits = {}
 
@@ -350,7 +349,6 @@ class FlatpakInvestigation:
                     self._add_build_investigation(build, update)
                 elif update.status == 'testing':
                     mrt_build, _ = most_recent_testing.get(stream, (None, None))
-                    logger.warning("%s %s", mrt_build and mrt_build.nvr, build.nvr)
                     if mrt_build is None or mrt_build.nvr < build.nvr:
                         most_recent_testing[stream] = (build, update)
                 elif update.status == 'stable':
@@ -412,7 +410,7 @@ class Investigation:
         refresh_flatpak_builds(session, [i.name for i in self.flatpak_investigations])
 
         # And about the contents of relevant tags
-        for release in release_info.releases:
+        for release in session.fedora_releases:
             if release.status != ReleaseStatus.EOL:
                 refresh_tag_builds(session, release.tag)
 
