@@ -52,14 +52,15 @@ Setup
 -----
 
 ``` sh
-dnf install libmodulemd npm pipenv python3-fedmsg python3-gobject-base python3-koji python3-pip
-pipenv --three --site-packages
-pipenv install --dev -e .
-pipenv run pip install -e .
+dnf install libmodulemd npm python3-fedmsg python3-gobject-base python3-koji python3-pip
+git submodule init
+git submodule update
+python3 -m venv .venv --system-site-packages
+.venv/bin/activate
+pip3 install -e flatpak-indexer .
+pip3 install -e .
 npm install
 ```
-
-You can then enter an interactive session with `pipenv shell`
 
 Trying it locally
 ----------------

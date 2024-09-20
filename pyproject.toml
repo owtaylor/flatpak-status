@@ -1,3 +1,37 @@
 [build-system]
 requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta:__legacy__"
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flatpak-status"
+description = "Status page for Fedora Flatpaks"
+authors = [
+    {name = "Owen Taylor", email = "otaylor@redhat.com"},
+]
+license = {text = "MIT"}
+version = "0.1"
+
+dependencies = [
+  "requests",
+  "fedmsg",
+]
+
+[project.optional-dependencies]
+tests = [
+    "fakeredis",
+    "flake8",
+    "flake8-import-order",
+    "iso8601",
+    "pytest",
+    "pytest-cov",
+    "responses",
+]
+
+[project.urls]
+repository = 'https://github.com/owtaylor/flatpak-status'
+
+[project.scripts]
+flatpak-status = "flatpak_status.cli:cli"
+
+[tool.setuptools]
+packages = ["flatpak_status"]

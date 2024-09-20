@@ -2,7 +2,6 @@
 .coverage
 .test-data
 package-lock.json
-Pipfile.lock
 cache
 generated
 htmlcov
