@@ -27,7 +27,7 @@ jobs:
         run: |
             ./tools/update-test-data.sh --only-fetch-cache
             podman build -t flatpak-status:latest .
-            podman run -it --rm flatpak-status:latest pipenv run ./tools/test.sh
+            podman run -it --rm flatpak-status:latest ./tools/test.sh
 
             podman inspect flatpak-status:latest | jq '.[0].Config.Labels'
 
